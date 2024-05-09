@@ -1,10 +1,19 @@
+/******************************************************************************
 
-********************************************************************;
-**** STEP 1b - Assigns outcome to each pregnancy outcome group  ****;
-**** Outcome Algorithm 2 Applied                                ****;
-********************************************************************;
+Program: chase_Step1b_AssignOutcome_Algorithm1.sas
 
-*modified from chase_1b2_assignoutcome_algorithm2.sas;
+Programmer: Sharon 
+
+Purpose: Assigns pregnancy outcomes to pregnancy outcome groups using the 
+proposed methodology in Algorithm 1.
+
+Modifications:
+	- 04-29-24: Chase (CDL) added comments throughout and modified appearance.
+		Suggested changes to how we are collecting the codetype information 
+		for outcome1.
+
+*******************************************************************************/
+
 
 *** NOW step 1b.1 part 2 concordance flags (for alg 2 All are discordant, nothing to add); run;
 
@@ -19,9 +28,8 @@
 */
 
 data &NewDsn._Alg2 ; *outcome solely based on hierarchy;
- set &concdsn (in=a)
-     &discdsn (in=b)
- ;
+set &concdsn (in=a)
+     &discdsn (in=b);
 
  *summarize approach: ;
  * For concordant groups just use outcome from concordant datastep;
@@ -30,104 +38,112 @@ data &NewDsn._Alg2 ; *outcome solely based on hierarchy;
  *  if no outcome defined by proc but defined by diagnosis then assign that outcome again using same hier#2;
  *  if no outcome defined by proc or diag then using Rx again by hier#2;
 
- *if a then discordant2=0;
- Discordant2 = b;
- OutAssgn_pt1 ='unk';
+	 /*Create discordance flag*/
+	 *if a then discordant2=0;
+	 Discordant2 = b;
+	 *CDL: Commented out because accomplished later;
+	 *OutAssgn_pt1 ='unk';
 
- if concordant then OutAssgn_pt1 = outcome_concordant;
- *else do;
-  *check for presence of each code type (alg2 hierarchy 1);
-   if put(delivery,$outcd.) = 'PR' or put(abortion,$outcd.)='PR' or put(ectopic,$outcd.)='PR'
-    then Hier2_1 = 'PR';
-   else if put(delivery,$outcd.) = 'DX' or put(abortion,$outcd.)='DX' or put(ectopic,$outcd.)='DX'
-    then Hier2_1 = 'DX' ;
-   else Hier2_1 = 'RX';
- *end;
+	 /*If pregnancy outcome groups have concordant outcomes, then retain those outcomes.*/
+	 *CDL: Commented out because accomplished later;
+	 *if concordant then OutAssgn_pt1 = outcome_concordant;
 
- *using hierarchy order same as in Alg 1 (step 1b.3 was3b.3);
- array hier(*) LBM LBS MLS SB UDL SAB IAB UAB EM AEM; *labeled as hierarchy2 in 1b.3;
+	 *check for presence of each code type (alg2 hierarchy 1);
+	 if put(delivery,$outcd.) = 'PR' or put(abortion,$outcd.)='PR' or put(ectopic,$outcd.)='PR'
+	    	then Hier2_1 = 'PR'; 
+	   	else if put(delivery,$outcd.) = 'DX' or put(abortion,$outcd.)='DX' or put(ectopic,$outcd.)='DX'
+	    	then Hier2_1 = 'DX' ;
+	   	else Hier2_1 = 'RX';
 
- OutAssgn_pt1='unk';
- if concordant then OutAssgn_pt1=outcome_concordant;
- else do;
-   *Outcome_Assigned (simpler - pick outc based on codetype and 3b.3-hier2);
-     if hier2_1 = 'PR' then do i=1 to 10 until (OutAssgn_pt1 ne 'unk');
-       if hier(i) in ( '010','011' ,'110', '111' '012','112', '013','113' ) then do; 
-         OutAssgn_pt1 = vname(hier(i)); *3b.2;
-       end;
-     end;
-     else if Hier2_1='DX' then do i=1 to 10 until (OutAssgn_pt1 ne 'unk');
-       if hier(i) in ('100','110','101','111' '102','112', '103','113') then do; 
-         OutAssgn_pt1 = vname(hier(i));
-       end;
-     end;
-     else if Hier2_1='RX' then OutAssgn_pt1 = 'UAB';
- end;
- *note - same result as more detailed/long code (both were in chase_1b2_assignoutcome_algorithm2);
+	 *using hierarchy order same as in Alg 1 (step 1b.3 was3b.3);
+	 array hier(*) LBM LBS MLS SB UDL SAB IAB UAB EM AEM; *labeled as hierarchy2 in 1b.3;
 
- *Data cleaning steps 1b.4-1b.5;
- *step 1b.4 - if delivery reassign outcome if removing non-delivery results in concordance  ;
- if OutAssgn_pt1 in ('LBM','LBS','MLS','SB','UDL') then do;
-         if lbm NE ('000')  And SB='000' And LBS='000' and MLS='000' 
-         then do; OutAssgn_pt2='LBM';end;
-    else if lbs NE ('000')  And SB='000' And LBM='000' and MLS='000' 
-        then do; OutAssgn_pt2='LBS';end;
-    else if mls NE ('000')  And SB='000' And LBM='000' and LBS='000'
-         then do; OutAssgn_pt2='MLS';end;
-    else if sb NE ('000')  And MLS='000' And LBM='000' and LBS='000' 
-        then do; OutAssgn_pt2='SB';end;
-    else OutAssgn_pt2='UDL'; *mix of single,multi,mixed OR just UDL;
- end;
+	 OutAssgn_pt1='unk';
+	 if concordant then OutAssgn_pt1=outcome_concordant;
+	 else do;
+	   *Outcome_Assigned (simpler - pick outc based on codetype and 3b.3-hier2);
 
- *Step 1b.5 - if abortion again use table 1 for concordant outcomes ignoring AEM/EM  ;
-    *07.05 per CL and MW - not adjusting for AEM at this point in alg;
-  else if OutAssgn_pt1 in ('SAB' 'IAB' 'UAB') then do; *follow 3b. table 1;
-         if sab NE ('000') And IAB='000' then OutAssgn_pt2='SAB'; *3b.5.1;
-    else if iab NE ('000') And SAB='000' then OutAssgn_pt2='IAB';
-    else if SAB='000' And IAB='000' then OutAssgn_pt2='UAB';  
-    else if SAB NE ('000') and IAB NE ('000') then OutAssgn_pt2='UAB'; *3b.5.2 discordant;
+	 	*First assigned highest level procedure code - this is what will be assigned
+	 	even if there is more than 1 procedure code;
+	     if hier2_1 = 'PR' then do i=1 to 10 until (OutAssgn_pt1 ne 'unk');
+	       if hier(i) in ( '010','011' ,'110', '111' '012','112', '013','113' ) then do; 
+	         OutAssgn_pt1 = vname(hier(i)); *3b.2;
+	       end;
+	     end;
 
-/*         if sab NE ('000') and uab NE ('000') And IAB='000' then OutAssgn_pt2='SAB'; *3b.5.1;*/
-/*    else if iab NE ('000') and uab NE ('000') And SAB='000' then OutAssgn_pt2='IAB';*/
-/*    else if UAB NE ('000') And SAB='000' And IAB='000' then OutAssgn_pt2='UAB';  */
-/*    else if SAB NE ('000') and IAB NE ('000') then OutAssgn_pt2='UAB'; *3b.5.2 discordant;*/
+		 *If no procedure, then assigned the highest level dx code - this is what
+		 will be assigned even if there is more than 1 dx code;
+	     else if Hier2_1='DX' then do i=1 to 10 until (OutAssgn_pt1 ne 'unk');
+	       if hier(i) in ('100','110','101','111' '102','112', '103','113') then do; 
+	         OutAssgn_pt1 = vname(hier(i));
+	       end;
+	     end;
 
-    *if ignoring ectopic then single abortion outcome types are concordant;
-/*    else if SAB NE ('000') and IAB In ('000') And UAB='000' then OutAssgn_pt2='SAB'; */
-/*    else if IAB NE ('000') and SAB In ('000') And UAB='000' then OutAssgn_pt2='IAB'; */
-/*    else if UAB NE ('000') and SAB In ('000') And IAB='000' then OutAssgn_pt2='UAB'; */
+		 *If they only have RXs left, then it should be a UAB.;
+	     else if Hier2_1='RX' then OutAssgn_pt1 = 'UAB';
+	 end;
 
- end;
 
- else OutAssgn_pt2 = OutAssgn_pt1; 
- *not in table explicit (3b.4 only refers to delivery) - confirmed ok per CL 6.7 mtg;
- *Drop i hier2_1;
+	 *Data cleaning steps 1b.3-1b.4;
+	 *If you have a delivery outcome but concordant codes once you limit
+	 to deliveries, then implement concordance with the delivery outcomes;
+	 *Delivery codes would inherently be concordant;
+	 if OutAssgn_pt1 in ('LBM','LBS','MLS','SB','UDL') then do;
+	         if lbm NE ('000')  and SB='000' And LBS='000' and MLS='000' 
+	         then do; OutAssgn_pt2='LBM';end;  
+	    else if lbs NE ('000')  And SB='000' And LBM='000' and MLS='000' 
+	        then do; OutAssgn_pt2='LBS';end;
+	    else if mls NE ('000')  And SB='000' And LBM='000' and LBS='000'
+	         then do; OutAssgn_pt2='MLS';end;
+	    else if sb NE ('000')  And MLS='000' And LBM='000' and LBS='000' 
+	        then do; OutAssgn_pt2='SB';end;
+	    else OutAssgn_pt2='UDL'; *mix of single,multi,mixed OR just UDL;
+	 end;
 
- *step 6 - outcome code type added here for assigned2_clean (already done for assigned2 above);
- Outcome_Assigned2 = outAssgn_pt2;
+	 *Step 1b.5 - if abortion again use table 1 for concordant outcomes ignoring AEM/EM  ;
+	  else if OutAssgn_pt1 in ('SAB' 'IAB' 'UAB') then do; *follow 3b. table 1;
+	         if sab NE ('000') And IAB='000' then OutAssgn_pt2='SAB'; *3b.5.1;
+	    else if iab NE ('000') And SAB='000' then OutAssgn_pt2='IAB';
+	    else if SAB='000' And IAB='000' then OutAssgn_pt2='UAB';  
+	    else if SAB NE ('000') and IAB NE ('000') then OutAssgn_pt2='UAB'; *3b.5.2 discordant;
 
- *use the highest codetype for outcome type assigned to group;
-    *only UDL has procedures, all other delivery types are diagnosis code based;
-    *AEM is only dx based but all other outcomes have multiple possible code types;
-    *for abortion if both SAB and IAB then otucome would be UAB so ok to use Abortion value (covers all);
-      IF Outcome_Assigned2 in ('LBM' 'LBS' 'UDL' 'SB' 'MLS') then Outcome_Assigned_Codetype2= Delivery;
-      ELSE IF Outcome_Assigned2 in ('SAB' 'IAB' 'UAB') then Outcome_Assigned_Codetype2= Abortion;
-      ELSE IF Outcome_Assigned2 in ('EM' 'AEM') then Outcome_Assigned_Codetype2= Ectopic;
+	 end;
 
-       Outcome_Class_Assigned2 = put(outcome_assigned2,$outclass.);*09.07;
+	 else OutAssgn_pt2 = OutAssgn_pt1; 
 
-  label
-   outcome_assigned2 = "Outcome Assigned (Algorithm2)"
-   outcome_assigned_codetype2="Outcome codetype (100=dx, 010=pr, 0001=rx)"
-   discordant2 = "Discordant outcome (algorithm2)"
-   outcome_class_assigned2="Class of outcome (deliv/abort/ectopic)"
-  ;*added 9.22.23;
+	 *step 6 - outcome code type added here for assigned2_clean (already done for assigned2 above);
+	 Outcome_Assigned2 = outAssgn_pt2;
+
+	 *Return the code types concordant with the pregnancy outcome class of the final pregnancy outcome;
+	 IF Outcome_Assigned2 in ('LBM' 'LBS' 'UDL' 'SB' 'MLS') then Outcome_Assigned_Codetype2= Delivery;
+	      ELSE IF Outcome_Assigned2 in ('SAB' 'IAB' 'UAB') then Outcome_Assigned_Codetype2= Abortion;
+	      ELSE IF Outcome_Assigned2 in ('EM' 'AEM') then Outcome_Assigned_Codetype2= Ectopic;
+
+	  Outcome_Class_Assigned2 = put(outcome_assigned2,$outclass.);*09.07;
+
+	  label
+	   outcome_assigned2 = "Outcome Assigned (Algorithm2)"
+	   outcome_assigned_codetype2="Outcome codetype (100=dx, 010=pr, 001=miso, 002=mife, 003=miso+mife)"
+	   discordant2 = "Discordant outcome (algorithm2)"
+	   outcome_class_assigned2="Class of outcome (deliv/abort/ectopic)"
+	  ;
 
 run;    
 
 
+*Checks;
+/*proc freq data=&NewDsn._Alg2;*/
+/*	table outcome_assigned2 / missing;*/
+/*run;*/
+/*proc sort data=&NewDsn._Alg2;*/
+/*	by Outcome_Assigned2;*/
+/*run;*/
 
-    ods rtf file = "&outpath.\Step1b_ReviewAlgorithm2_&Newdsn._%sysfunc(date(),yymmddn8.).rtf" style=minimal;
+
+
+/*Output some descriptives of the dataset*/
+
+ods rtf file = "&outpath.\Step1b_ReviewAlgorithm2_&Newdsn._%sysfunc(date(),yymmddn8.).rtf" style=minimal;
 
         title1 "Step 1b - Algorithm 2 outcomes" ;
         proc freq data= &newdsn._alg2 ;
@@ -137,24 +153,24 @@ run;
 
         title3 ' review discordant';
         proc sql;
-         select LBM, LBS, MLS, SB, UDL, SAB, IAB, UAB, EM, AEM, outcome_assigned2,Outcome_Assigned_Codetype2, count(*)
-         from &newdsn._Alg2 where discordant2 And OutAssgn_pt2 in ('LBM', 'LBS', 'MLS', 'SB', 'UDL')
-          group by LBM, LBS, MLS, SB, UDL, SAB, IAB, UAB, EM, AEM, outcome_assigned2,Outcome_Assigned_Codetype2 ;
+         	select LBM, LBS, MLS, SB, UDL, SAB, IAB, UAB, EM, AEM, outcome_assigned2,Outcome_Assigned_Codetype2, count(*)
+         	from &newdsn._Alg2 where discordant2 And OutAssgn_pt2 in ('LBM', 'LBS', 'MLS', 'SB', 'UDL')
+          	group by LBM, LBS, MLS, SB, UDL, SAB, IAB, UAB, EM, AEM, outcome_assigned2,Outcome_Assigned_Codetype2 ;
 
-         select LBM, LBS, MLS, SB, UDL, SAB, IAB, UAB, EM, AEM, outcome_assigned2,Outcome_Assigned_Codetype2, count(*)
-         from &newdsn._Alg2 where discordant2 And OutAssgn_pt2 in ('SAB','IAB','UAB')
-          group by LBM, LBS, MLS, SB, UDL, SAB, IAB, UAB, EM, AEM, outcome_assigned2 ,Outcome_Assigned_Codetype2;
+         	select LBM, LBS, MLS, SB, UDL, SAB, IAB, UAB, EM, AEM, outcome_assigned2,Outcome_Assigned_Codetype2, count(*)
+         	from &newdsn._Alg2 where discordant2 And OutAssgn_pt2 in ('SAB','IAB','UAB')
+          	group by LBM, LBS, MLS, SB, UDL, SAB, IAB, UAB, EM, AEM, outcome_assigned2 ,Outcome_Assigned_Codetype2;
 
-         select LBM, LBS, MLS, SB, UDL, SAB, IAB, UAB, EM, AEM, outcome_assigned2,Outcome_Assigned_Codetype2, count(*)
-         from &newdsn._Alg2 where discordant2 And OutAssgn_pt2 in ('EM','AEM')
-          group by LBM, LBS, MLS, SB, UDL, SAB, IAB, UAB, EM, AEM, outcome_assigned2 ,Outcome_Assigned_Codetype2;
-        quit;
+         	select LBM, LBS, MLS, SB, UDL, SAB, IAB, UAB, EM, AEM, outcome_assigned2,Outcome_Assigned_Codetype2, count(*)
+         	from &newdsn._Alg2 where discordant2 And OutAssgn_pt2 in ('EM','AEM')
+          	group by LBM, LBS, MLS, SB, UDL, SAB, IAB, UAB, EM, AEM, outcome_assigned2 ,Outcome_Assigned_Codetype2;
+
+			quit;
 
         proc sql;
-         select LBM, LBS, MLS, SB, UDL, SAB, IAB, UAB, EM, AEM, OutAssgn_pt1, OutAssgn_pt2, count(*)
-         from &newdsn._Alg2 where discordant2 And AEM ne '000'
-          group by LBM, LBS, MLS, SB, UDL, SAB, IAB, UAB, EM, AEM, OutAssgn_pt1, OutAssgn_pt2;
+         	select LBM, LBS, MLS, SB, UDL, SAB, IAB, UAB, EM, AEM, OutAssgn_pt1, OutAssgn_pt2, count(*)
+         	from &newdsn._Alg2 where discordant2 And AEM ne '000'
+          	group by LBM, LBS, MLS, SB, UDL, SAB, IAB, UAB, EM, AEM, OutAssgn_pt1, OutAssgn_pt2;
+        	quit;
 
-        quit;
-
-    ods rtf close;
+ods rtf close;
