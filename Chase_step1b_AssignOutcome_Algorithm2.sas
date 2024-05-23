@@ -11,6 +11,8 @@ Modifications:
 	- 04-29-24: Chase (CDL) added comments throughout and modified appearance.
 		Suggested changes to how we are collecting the codetype information 
 		for outcome1.
+	- 05.2024 - CDL conducted QC. SPH and CDL discussed. All modifications were
+		reviewed and agreed upon by both.
 
 *******************************************************************************/
 
@@ -41,6 +43,7 @@ set &concdsn (in=a)
 	 /*Create discordance flag*/
 	 *if a then discordant2=0;
 	 Discordant2 = b;
+
 	 *CDL: Commented out because accomplished later;
 	 *OutAssgn_pt1 ='unk';
 

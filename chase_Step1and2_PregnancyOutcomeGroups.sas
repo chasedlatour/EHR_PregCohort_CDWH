@@ -11,6 +11,10 @@ Purpose: Program pregnancy outcomes table steps 1a-1b8 of pregnancy algorithm,
          Formats shared by all outcome algorithms and macros for shared
          datasteps, including Concordant Outcomes
 
+MODIFICATIONS:
+	-	05.2025 - CDL reformatted and annotated. Conducted QC and reviewed
+		with SPH. All modifications were approved by both.
+
 *******************************************************************************/
 
 
@@ -55,9 +59,9 @@ options nocenter  nodate dlcreatedir;
 
 This value will depend upon how your computer is mapped to the NC TraCS Server;
 *Sharon;
-*%let xdr= %str(\\ad.unc.edu\med\tracs\groups\Research\CDWH\Latour_Chase_22-0689\);
+%let xdr= %str(\\ad.unc.edu\med\tracs\groups\Research\CDWH\Latour_Chase_22-0689\);
 *Chase;
-%let xdr=%str(W:/);
+*%let xdr=%str(W:/);
 
 
 ***Specify necessary libraries
@@ -84,10 +88,13 @@ libname base "&xdr.\DATA\20230328_Data_Pull_01\analysis" access=r;
 %let lalgpath=C:\Users\peacocks\OneDrive - University of North Carolina at Chapel Hill\_projects\mollie\;
 *Version on the NC TraCS Server;
 *Sharon version;
-*%let algpath=&xdr.\programs\sharon\preg_outcomes;
+%let algpath=&xdr.\programs\preg_encounter_algorithm;
+*OLD: %let algpath=&xdr.\programs\sharon\preg_outcomes;
 
 *CDL version;
-%let algpath=&xdr.\programs\sharon\preg_outcomes\chase review;
+*%let algpath=&xdr.\programs\sharon\preg_outcomes\chase review;
+
+
 
 %let outpath = &algpath.;
 
@@ -223,9 +230,9 @@ within one pregnancy outcomg group.
 		concordance indicators. This dataset is used to output a descritpive RTF
 		file: &outpath.\Step1b1_Concordance_&grpdsn._%sysfunc(date(),yymmddn8.).rtf;
 
-/*%inc "&algpath.\chase_Step1b_AssignAllConcordanceFlagMacro.sas";  */
+%inc "&algpath.\chase_Step1b_AssignAllConcordanceFlagMacro.sas";  
 *CDL modification;
-%inc "&algpath./chase_Step1b_AssignAllConcordanceFlagMacro.sas";  
+/*%inc "&algpath./chase_Step1b_AssignAllConcordanceFlagMacro.sas";  */
 
 
 

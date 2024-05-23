@@ -9,6 +9,8 @@ pregnancy outcomes per the definitions in Table 1.
 
 Modifications:
 	- 04-29-24: CDL made comments and applied standardized set up.
+	- 05.2024: CDL conducted QC and reviewed with SPH. All modifications were
+		reveiwed and agreed upon by both.
 
 *******************************************************************************/
 
@@ -26,6 +28,13 @@ TABLE OF CONTENTS:
 	- 01 - SPLITCONCORDANT MACRO
 
 ******************************************************************************/
+
+
+
+
+
+
+
 
 
 
@@ -116,11 +125,9 @@ OUTPUT:
      	Outcome_Concordant='not';
 
 		/*Create an array of the outcomes to determine which ones are concordant*/
-/*     	array x(*) LBM LBS MLS SB UDL  SAB IAB UAB AEM EM ;*/
-		/*CDL: MODIFICATION -- EM before AEM, consistent with other hierarchies*/
 		array x(*) LBM LBS MLS SB UDL  SAB IAB UAB EM AEM;
 
-		/*CDL: NOTE -- This wont work as expected if someone has a UAB w meds only and then the other outcome is a AEM or EM.*/
+		/*Does not work as expected if someone has a UAB w meds only and then the other outcome is a AEM or EM.*/
 /*      	if outcomegroup_OutcomesNORX_N in (0, 1) then do; %*1 outcome or 2 with uab=rx (0=> only outcome is Rx);*/
 /*        	concordant=1; *only 1 outcome for group = cannot be discordant;*/
 /*        	do i=1 to dim(x);*/

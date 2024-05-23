@@ -11,12 +11,12 @@ Modifications:
 	- 04-29-24: Chase (CDL) added comments throughout and modified appearance.
 		Suggested changes to how we are collecting the codetype information 
 		for outcome1.
+	- 05.2024: CDL conducted QC. SPH and CDL reviewed. All modifications were
+		agreed upon by both.
 
 *******************************************************************************/
 
 
-
-*modified from chase_1b4_assignoutcome_algorithm4.sas;
 
 *algorithm4 (complex) - checkng for delivery procedure (copied alg3) then non-delivery procedure;
 *set outcomes to PRD - Procedure, delivery -- PRO - Procedure, Other  ;
@@ -33,8 +33,6 @@ set &discdsn (in=b);
 	*First, determine if there is a delivery procedure code present;
   	if put(delivery,$outcdpr.) = 1 then do; *any delivery proc? check for concordant combos;
 
-		*CDL: MODIFIED -- Cleaner than original code but provided the same result among those with discordant4 = 1
-		-- Same modification as Algorithm 3;
 		**step 1b1 part 2;
 	    *1 - ...and concordant delivery codes (redo table 1 check);
 		if lbm NE ('000') /*and udl NE ('000')*/ And SB='000' And LBS='000' and MLS='000' 
@@ -47,28 +45,6 @@ set &discdsn (in=b);
 	        then do; discordant4=1; Disc_OutPot4='PRD-SB';end;
 		else if UDL NE ('000') and SB In ('000') And MLS='000' And LBM='000' and LBS='000' 
 	        then do; discordant4=1; Disc_OutPot4='PRD-UDL';end;
-
-/*   		*1 - ...concordant delivery procedures (redo table 1 check);*/
-/*    	if lbm Not In ('000') and udl Not In ('000') And SB='000' And LBS='000' and MLS='000' */
-/*         	then do; Discordant4=1; Disc_OutPot4='PRD-LBM';end;*/
-/*    	else if lbs Not In ('000') and udl Not In ('000') And SB='000' And LBM='000' and MLS='000' */
-/*        	then do; Discordant4=1; Disc_OutPot4='PRD-LBS';end;*/
-/*	    else if mls Not In ('000') and udl Not In ('000') And SB='000' And LBM='000' and LBS='000'*/
-/*	         then do; Discordant4=1; Disc_OutPot4='PRD-MLS';end;*/
-/*	    else if sb Not In ('000') and udl Not In ('000') And MLS='000' And LBM='000' and LBS='000' */
-/*	        then do; Discordant4=1; Disc_OutPot4='PRD-SB';end;*/
-/**/
-/*	    *if ignoring non-delivery then single delivery outcome types are concurrent;*/
-/*	    else if lbm Not In ('000') and udl In ('000') And SB='000' And LBS='000' and MLS='000' */
-/*	         then do; Discordant4=1; Disc_OutPot4='PRD-LBM';end;*/
-/*	    else if lbs Not In ('000') and udl In ('000') And SB='000' And LBM='000' and MLS='000' */
-/*	        then do; Discordant4=1; Disc_OutPot4='PRD-LBS';end;*/
-/*	    else if mls Not In ('000') and udl In ('000') And SB='000' And LBM='000' and LBS='000'*/
-/*	         then do; Discordant4=1; Disc_OutPot4='PRD-MLS';end;*/
-/*	    else if sb Not In ('000') and udl In ('000') And MLS='000' And LBM='000' and LBS='000' */
-/*	        then do; Discordant4=1; Disc_OutPot4='PRD-SB';end;*/
-/*	    else if UDL Not In ('000') and SB In ('000') And MLS='000' And LBM='000' and LBS='000' */
-/*	        then do; Discordant4=1; Disc_OutPot4='PRD-UDL';end;*/
 
   	*2 - ...and discordant delivery codes;
    		else do;
@@ -104,7 +80,6 @@ set &ConcDsn. (in=a)
 
  	array hier(*) EM SAB IAB UAB AEM ; *step 1b.5 hierarchy;
  	array hier6(*) SAB IAB UAB SB LBM LBS MLS UDL EM AEM ; *hierarchy for pt2 step 1b.6 (same as alg3);
- 	*array hiert1(*)  LBM LBS MLS SB UDL SAB IAB UAB EM AEM; *3b.1 - table 1; *CDL: Commented out because not referenced again;
 
 	*Assign outcomes;
  	outassgn_pt1 ='unk';
@@ -147,24 +122,14 @@ set &ConcDsn. (in=a)
 
   	*next step7- 1b.7 - discordant abortion clean up;
  	If outassgn_pt1  in ('SAB' 'IAB' 'UAB' ) then do; 
-	*CDL: ADDED UDL to be consistent with alg 3. Might be some edge cases captured. - Chaned documentation;
+	*CDL: ADDED UDL to be consistent with alg 3. Might be some edge cases captured. - Changed documentation;
 
-		*CDL: MODIFIED to be more straightforward;
 		if SAB ne ('000') and IAB ne ('000') then outassgn_pt2='SAB'; *Deal w discordant abortion outcomes first;
 				else if SAB ne ('000') then outassign_pt2='SAB';
 				else if IAB ne ('000') then outassign_pt2 = 'IAB';
 		*NOTE: Some may have meds for IAB or SAB because they had concordant codes on an encounter whihc were 
 				rolled up to the group level;
 
-/*  		*if both (SAB+IAB +/- UAB);*/
-/*  		if sab ne '000' and iab ne '000' then outassgn_pt2='SAB'; *3b.7.1;*/
-/*   */
-/*   		*if just one;*/
-/*   		else do ;*1b.7.2 - go back to table 1 for abortion;*/
-/*        	if sab NE '000' then outassgn_pt2='SAB'; */
-/*    		else if iab NE '000' then outassgn_pt2='IAB';*/
-/*    		else if sab='000' and iab='000' and uab not in ('000') then Outcome_assigned4_clean='UAB';*/
-/*  		end;*/
  	end;
 
  	*1b8 - final outcome assignment;
@@ -189,13 +154,12 @@ set &ConcDsn. (in=a)
 run;
 
 
-/*Checks*/
-/*proc freq data= &newdsn._alg4;*where outcome_assigned3='unk';*/
-/*where outassgn_pt1 in ('SAB' 'IAB') And SAB ne '000' and iab ne '000';*/
-/*table discordant4*outcome_assigned4* SAB* IAB* UAB* EM* AEM /list missing ;*/
-/**table delivery* SAB* IAB* UAB* EM* AEM  * discordant4 *outcome_assigned4 /list missing;*uab-pr other ab not pr;*/
-/*format pr_n onepl.;*/
-/*run;*/
+
+
+
+
+
+
 
 /*Output a RTF file with descriptive information*/
 

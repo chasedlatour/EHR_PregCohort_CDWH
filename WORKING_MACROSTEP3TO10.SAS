@@ -9,6 +9,8 @@ Purpose: Create all of the macros that will be used to execute steps 3 through
 
 Modifications:
 	- 05-01-24: CDL reviewed the code, made comments, reformatted.
+	- 05.2024: CDL conducted QC. SPH and CDL reviewed. All modifications were
+		agreed upon by both.
 
 
 
@@ -223,24 +225,6 @@ INPUT: None;
 
 %mend;
 
-
-
-
-
-
-
-/*CDL: MODIFIED -- Commented this out. Now called in teh Step3thru10 code*/
-
- /*
- *------------------------------------------------------------------------------------------------*;
- * Step 5a - Step 5b2d - Evaluate Index+OutcGrp pairs to determine if outcomes part of the same
- * pregnancy episode (timing as noted in 5b.1-table 3) then determine the pregnancy outcome using
- * priortization of outcomes and outcome types (5b.2a, 5b.2b hierarchy lists).
- *------------------------------------------------------------------------------------------------*;
- */
-
-/*%inc "macro_5abc_simpler.sas";  */
-/* %inc "&Xdr.\PROGRAMS\sharon\Preg_Outcomes\macro_5abc_simpler.sas";*/
 
 
 
@@ -681,13 +665,13 @@ comparisons for Steps 5a-5c
             	;
 
           	Prenatal_Outcome = (result_oc_fin =: 'PREN');
-          	*PostExtendedTime_Outc = (index(result_oc_fin, "POS")>0); /*CDL: QUESTION -- Should this be EXT? POST is used for STATUS var*/
-          	PostExtendedTime_Outc = (index(result_oc_fin, "EXT")>0); /* response -- yep*/
+          	*PostExtendedTime_Outc = (index(result_oc_fin, "POS")>0);
+          	PostExtendedTime_Outc = (index(result_oc_fin, "EXT")>0); 
           	if result_oc_fin =: 'PREN' then result_oc_fin='PREN_OC'; /*Deal with those that end in a number for the round they were linked in*/
           	keep patient_deid outcomegrp dt_outcome: Outcome_assigned&ALG. result_oc_fin prenatal_outcome postextendedtime:
                	idxpren dt_indexprenatal dt_preg: PREG_: PREG_Codetype PREG_MIFE PREG_MISO dt_PREG_Outcome days_frompregend ;
              	label prenatal_outcome="Pregnancy defined by Prenatal encounter and Outcome Group"
-                postextendedtime_outc = "OutcomeGrp added after index+outc eval (tbl3) - too close" /*CDL: ADDED - - too close - to label*/
+                postextendedtime_outc = "OutcomeGrp added after index+outc eval (tbl3) - too close" 
         run;
 
 		%*Roll up the prenatal encounter results from all of the rounds. Keep the final values;
@@ -715,7 +699,6 @@ comparisons for Steps 5a-5c
         proc sql;
 
 			/*Grab all the distinct pregnancy information from ogp_result_oc*/
-			/*CDL: NOTE -- This does not currently contain PREG_MIFE nor PREG_MISO information*/
          	create table ogp_result_oc_preg as
           	select distinct *
            	from ogp_result_oc (keep=patient_deid idxpren dt_indexprenatal dt_preg: PREG_: dt_PREG_Outcome prenatal_outcome )
@@ -735,12 +718,6 @@ comparisons for Steps 5a-5c
         proc compare data=ogp_result_oc_preg compare=pdo_result_oc_preg outnoequal out=oc_preg_ck;
 		run;
         *want no unequal values;
-
-/*        **save temp - final versions of key dsns;*/
-/*        proc copy inlib=work outlib=temp;*/
-/*        select prenataldates_outc_&pnum. outcomeassigned_pren_&pnum. final_indexpre_&pnum.*/
-/*               index_outcome_fin_result_&pnum.  ogp_result_oc pdo_result_oc  ;*/
-/*        quit;;*/
 
 
        	** pregnancy data now;
@@ -950,7 +927,7 @@ together all prenatal encounters within
         if first.pno then dt_prenenc1st=enc_date; 
 		retain dt_prenenc1st;
 
-		/*CDL: SUGGESTED MODIFICATION -- commented out for now*/
+		/*Count the number of prenatal encounters in a pregnancy*/
 		if first.pno then Prenatal_Counter=0;
         Prenatal_Counter +1;
 
@@ -961,18 +938,14 @@ together all prenatal encounters within
 		if last.pno;
         format dt: mmddyy10.;
 
-		/*CDL: SUGGESTED MODIFICATION -- commented out*/
+		/*Count pregnancy order*/
 		Pregnancy_counter = pno;
-/*        Prenatal_counter=pno;*/
 	run;
 
     **all prenatal dates file updated;
     data PrenatalDates_all_status_&OCW._&ALG. ;
     set pdo_result_oc(in=a) prenatal_nooutc2 (in=b);
 
-		/*CDL: MODIFICATION -- Previous code was assigning 0 to PostEnc if status_oc_fin was post.
-		Now, suggesting that we reassign status variable for those pregnancies already linked to pregnancy
-		outcome groups. Otherwise, status is missing for those pregnancies.*/
 		if a then status = status_oc_fin;
 		
 		PostEnc = indexw(status,"POST")>0;
@@ -1268,6 +1241,9 @@ This will accomplish steps 9-10.
 
 MACROS that output log notes
 
+Some of these are important for calculating global macro variables
+that are used to run through the code loops.
+
 *****************************************************************************/
 
 /* ***** some notes for log window ******;*/
@@ -1284,47 +1260,18 @@ MACROS that output log notes
 
 
 
+%macro lognote3; *basically same as in lognote1 (usin macro just to prettify log);
+%PUT;%PUT Steps 4-5a  (check this sharon) (index &NUM);
+%put        ------  PATIENTS WITH PRENATAL DATES (index prenatal # &NUM): &pdts.  &idc. ;
+%put        ------  PATIENTS WITH INDEX PRENATAL DATES &NUM: &ipdts.   ;
+%put        ------  PATIENT IDs with 1+ OUTCOMEGROUPS IN  &pow. d: &pog.  &pic. ;
+%put        ------  TOTAL OUTCOME GROUPS TO EVALUATE W/IN  &pow. d: &OE.   ;
+%put        ------  MEAN OUTCOMEGROUPS PER PATIENT ID IN  &pow. d: &MNOE.   ;
+%put        ------  MAX OUTCOMEGROUPS PER PATIENT ID IN  &pow. d: &MXOE.   ;
 
-/*       ods listing;*/
-/*        title "Prenatal Index to Outcome Groups - Index Date # &NUM.";*/
-/*        title3 "Counts - prenatal encounters and outcome groups w/in  &pow. d";*/
-/*        proc sql;*/
-/*         select count(distinct a.prennum) as Prenatal_Dates,*/
-/*                count(distinct b.prennum) as Index_Prenatal_Dates,*/
-/*                count(distinct case when outcomegroupsfound=0 then b.prennum else . end) as Index_Prenatal_dates_NoGroups,*/
-/*                count(distinct cat(c.patient_deid,c.outcomegrp)) as Patient_OutcomeGroups,*/
-/*                count(distinct cat(b.patient_deid,b.outcomegrp)) as OutcomeGroups_To_Evaluate,*/
-/*                mean(outcomegroupsfound) as Mean_Num_OutcomeGroups_PerIndex,*/
-/*                max(outcomegroupsfound) as Max_Num_OutcomeGroups_PerIndex*/
-/*           INTO :pdts,:ipdts, :idptsnog, :pog, :oe, :mnoe, :mxoe*/
-/*         from prenataldates_outc_%eval(&NUM. - 1) a full join indexprenataloutcomes_&NUM. b on a.prennum=b.prennum*/
-/*              full join outcomeassigned_pren_%eval(&NUM. - 1) c on c.patient_deid=b.patient_deid and c.outcomegrp=b.outcomegrp;*/
-/*        quit;*/
+%put        ------  MAX# OUTCOME GROUPS per PATIENT ID: &max.   ;
+%mend;
 
-/*        ods startpage =no;*/
-/*        title3 'status of all prenatal encounter dates for women with at least 1 outcome group';*/
-/*        proc freq data=prenataldates_outc_&num.; table status_%eval(&NUM. - 1)*status_&num./list missing;run;*/
-/*        title3 'status of all outcomegroups for women with at least 1 prenatal encounter';*/
-/*        proc freq data=outcomeassigned_pren_&num.; table result_%eval(&NUM. - 1)*result_&num./list missing;run;*/
-
-        %macro lognote3; *basically same as in lognote1 (usin macro just to prettify log);
-        %PUT;%PUT Steps 4-5a  (check this sharon) (index &NUM);
-        %put        ------  PATIENTS WITH PRENATAL DATES (index prenatal # &NUM): &pdts.  &idc. ;
-        %put        ------  PATIENTS WITH INDEX PRENATAL DATES &NUM: &ipdts.   ;
-        %put        ------  PATIENT IDs with 1+ OUTCOMEGROUPS IN  &pow. d: &pog.  &pic. ;
-        %put        ------  TOTAL OUTCOME GROUPS TO EVALUATE W/IN  &pow. d: &OE.   ;
-        %put        ------  MEAN OUTCOMEGROUPS PER PATIENT ID IN  &pow. d: &MNOE.   ;
-        %put        ------  MAX OUTCOMEGROUPS PER PATIENT ID IN  &pow. d: &MXOE.   ;
-
-        %put        ------  MAX# OUTCOME GROUPS per PATIENT ID: &max.   ;*15 outcomegroups to evaluate for belonging to same pregnancy for prenatal care;
-        %mend;
-/*        %LOGNOTE3*/
-
-    /*    title3 "Pregnancy outcomes after evaluating groups linked to Index Prenatal";*/
-    /*    proc freq data=final_indexpre_&num.; table index_finding_&num. pairedoutcome*pairedcodetype;table pairedoutcome*index_finding_&NUM. / nocum;run;*/
-    /*    PROC MEANS data=final_indexpre_&num. maxdec=2 n min median max mean std;CLASS INDEX_FINDING_&num.;VAR Days_IndexLookback;RUN;*/
-    /*    PROC MEANS data=final_indexpre_&num.;where index_finding_2='LTFU';*/
-    /*       CLASS INDEX_FINDING_&num. pairedoutcome;VAR Days_IndexLookback;RUN;*/
 
 
 %macro lognote34;
@@ -1347,15 +1294,18 @@ MACROS that output log notes
 
 %mend;
 
-  %macro lognote5ab;
-    proc sql noprint;
-     select nobs into :noic from dictionary.tables where lowcase(memname)=lowcase("&RDP._outcomeneedindex_&NUM.");
-     select nobs into :noif from dictionary.tables where lowcase(memname)=lowcase("&RDP._index_outcome_fin_&NUM.");
-     select nobs into :noid from dictionary.tables where lowcase(memname)=lowcase("&RDP._deletedrows_&NUM.");
-       select count(*) into :noida from &RDP._outcomeneedindex_&NUM. where needpren='a'; *outcomegrps not preg;
-       select count(*) into :noidb from &RDP._outcomeneedindex_&NUM. where needpren='b'; *outcomegrps addl added;
-     select nobs into :noii from dictionary.tables where lowcase(memname)=lowcase("&RDP._outidsfin_&NUM.");
-    quit;
+
+
+
+%macro lognote5ab;
+	proc sql noprint;
+     	select nobs into :noic from dictionary.tables where lowcase(memname)=lowcase("&RDP._outcomeneedindex_&NUM.");
+     	select nobs into :noif from dictionary.tables where lowcase(memname)=lowcase("&RDP._index_outcome_fin_&NUM.");
+     	select nobs into :noid from dictionary.tables where lowcase(memname)=lowcase("&RDP._deletedrows_&NUM.");
+       	select count(*) into :noida from &RDP._outcomeneedindex_&NUM. where needpren='a'; *outcomegrps not preg;
+       	select count(*) into :noidb from &RDP._outcomeneedindex_&NUM. where needpren='b'; *outcomegrps addl added;
+     	select nobs into :noii from dictionary.tables where lowcase(memname)=lowcase("&RDP._outidsfin_&NUM.");
+    	quit;
 
 
     %PUT Steps 5a-5b (&oct. patient-outcomegrp linked to index prenatal);
@@ -1364,8 +1314,4 @@ MACROS that output log notes
     %put ----- outcomes rolled up with 1st outcomegrp into pregnancy - &noid.;
     %put &noii. %eval(&noic. + &noif. + &noid) ;
 
-  %mend;
-/*  %lognote5ab */
-/**/
-/*  %lognote34*/
-  /*    *15 outcomegroups to evaluate for belonging to same pregnancy for prenatal care;*/
+%mend;

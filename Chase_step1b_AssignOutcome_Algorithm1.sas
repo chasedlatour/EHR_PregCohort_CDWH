@@ -11,6 +11,8 @@ Modifications:
 	- 04-29-24: Chase (CDL) added comments throughout and modified appearance.
 		Suggested changes to how we are collecting the codetype information 
 		for outcome1.
+	- 05.2024: CDL conducted QC. SPH and CDL reviewed. All modifications were 
+		reviewed and agreed upon by both.
 
 *******************************************************************************/
 

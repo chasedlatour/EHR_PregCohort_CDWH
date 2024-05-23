@@ -54,9 +54,9 @@ TABLE OF CONTENTS:
 
 /*Specify the location of files on the server*/
 *Sharon version;
-*%let xdr= %str(\\ad.unc.edu\med\tracs\groups\Research\CDWH\Latour_Chase_22-0689);
+%let xdr= %str(\\ad.unc.edu\med\tracs\groups\Research\CDWH\Latour_Chase_22-0689);
 *Chase version;
-%let xdr= %str(W:/);
+*%let xdr= %str(W:/);
 
 options nocenter noreplace nodate dlcreatedir;
 

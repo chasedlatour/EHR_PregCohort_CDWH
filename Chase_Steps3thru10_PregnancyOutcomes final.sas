@@ -14,6 +14,8 @@
 ***
 ***	MODIFICATIONS:
 ***		- 05-01-24: CDL reviewed, added comments, set up, etc.								   *
+***		- 05-2024: CDL conducted QC. SPH and CDL reviewed. All modifications were agreed upon
+			by both.
 ************************************************************************************************/         
 
 
@@ -78,9 +80,10 @@ libname out "&xdr./DATA/20230328_Data_Pull_01/analysis/int_20230516/20231102" ;
 
 *Pull in the format statements;
 *Sharon;
-*%inc "&Xdr.\PROGRAMS\sharon\Preg_Outcomes\chase_Step0_FormatStatements.sas";
+%inc "&Xdr.\PROGRAMS\preg_encounter_algorithm\chase_Step0_FormatStatements.sas";
+*OLD: %inc "&Xdr.\PROGRAMS\sharon\Preg_Outcomes\chase_Step0_FormatStatements.sas";
 *Chase;
-%inc "&Xdr./PROGRAMS/sharon/Preg_Outcomes/chase review/chase_Step0_FormatStatements.sas";
+*%inc "&Xdr./PROGRAMS/sharon/Preg_Outcomes/chase review/chase_Step0_FormatStatements.sas";
 
 
 
@@ -105,19 +108,6 @@ Get all prenatal encounters (only need date and base-class).
 
 
 
-/*proc sql stimer; */
-/* create table _codeprenatal_meg1 as */
-/*  select distinct patient_deid,enc_date, megan_primary_prenatal,*/
-/*         case enc_base_class when '' then "unknown" else enc_base_class end as BASE_CLASS*/
-/*   from int.codeprenatal where megan_primary_prenatal order by patient_deid, enc_date;*/
-/* create table prenids as select distinct patient_deid,1 as AnyPrenatal */
-/*   from _codeprenatal_meg1;*157353;*/
-/*quit;*/
-/**/
-/*proc transpose data=_codeprenatal_meg1*/
-/*      out=_codeprenatal_meg1_dts (drop= _name_ _label_) prefix=pren_ ;*/
-/* by patient_deid enc_date; id  base_class; var megan_primary_prenatal;*/
-/*run;*933210;*/
 
 
 *Create necessary datasets;
@@ -127,8 +117,7 @@ proc sql;
  	create table _codeprenatal_meg1_dts as 
 	select * 
 	from  int.codeprenatal_meg1_dts
-
-;
+	;
 
 	*Get the IDs of people with prenatal encounters;
  	create table prenids as 
@@ -161,9 +150,14 @@ These will be used to execute steps 3-10.
 
 *These are the primary maacros to be included;
 *Sharon version;
-*%inc "&Xdr.\PROGRAMS\sharon\Preg_Outcomes\working_MacroStep3to10.sas"  ;
+%inc "&Xdr.\PROGRAMS\preg_encounter_algorithm\WORKING_MACROSTEP3TO10.sas"  ;
+*OLD: %inc "&Xdr.\PROGRAMS\sharon\Preg_Outcomes\working_MacroStep3to10.sas"  ;
 *Chase version;
-%inc "&Xdr./PROGRAMS/sharon/Preg_Outcomes/chase review/WORKING_MACROSTEP3TO10.sas"  ;
+*%inc "&Xdr./PROGRAMS/sharon/Preg_Outcomes/chase review/WORKING_MACROSTEP3TO10.sas"  ;
+
+
+
+
 
 
 *Macros specific to Step 5;
@@ -176,9 +170,10 @@ These will be used to execute steps 3-10.
  */;
 
 *Sharon;
-*%inc "&Xdr.\PROGRAMS\sharon\Preg_Outcomes\macro_5abc_simpler.sas";
+%inc "&Xdr.\PROGRAMS\preg_encounter_algorithm\macro_5abc_simpler.sas";
+*OLD: %inc "&Xdr.\PROGRAMS\sharon\Preg_Outcomes\macro_5abc_simpler.sas";
 *Chase;
-%inc "&Xdr./PROGRAMS/sharon/Preg_Outcomes/chase review/macro_5abc_simpler.sas";
+*%inc "&Xdr./PROGRAMS/sharon/Preg_Outcomes/chase review/macro_5abc_simpler.sas";
 
 
 
@@ -222,6 +217,7 @@ macro variables initialized during processing (control loops)
 
 
 /*  
+Testing:
 %let ocw=7 ; %let alg=1; %let pow=286; 
 %let num=1; %let maxenc=5;  %let max=5;
 */
@@ -562,36 +558,3 @@ proc copy  inlib=work outlib=po;
 quit;
 
 
-
-
-
-
-/*Checks:*/
-/*proc compare data=out.pregnancy_7_1 compare=pregnancy_7_1;*/
-/*where prenonly=0 and outconly=0;*/
-/*run;*/
-/*proc sort data=out.pregnancy_7_1 out=old_prenout71;by idxpren;where prenonly=0 and outconly=0;run;*/
-/*proc sort data= pregnancy_7_1 out= prenout71;by idxpren;where prenonly=0 and outconly=0;run;*/
-/*proc compare data=prenout71 compare=old_prenout71;run;*/
-/**/
-/*proc sort data=out.pregnancy_7_1 out=old_pren71;by idxpren;where prenonly=1;run;*/
-/*proc sort data= pregnancy_7_1 out= pren71;by idxpren;where prenonly=1;run;*/
-/*proc compare data=pren71 compare=old_pren71;run;*/
-/**/
-/*proc sort data=out.pregnancy_7_1 out=old_OUTC71;by idxpren;where OUTConly=1;run;*/
-/*proc sort data= pregnancy_7_1 out= OUTC71;by idxpren;where OUTCOnly=1;run;*/
-/*PROC SORT DATA=OUTC71;BY PATIENT_DEID DT_PREG_OUTCOME;*/
-/*PROC SORT DATA=OLD_OUTC71;BY PATIENT_DEID DT_PREG_OUTCOME;*/
-/*proc compare data=OUTC71 compare=old_OUTC71;*/
-/*ID PATIENT_DEID DT_PREG_OUTCOME;*/
-/*run;*/
-/*PROC FREQ DATA=OLD_OUTC71;TABLE PREG_OUTCOME;RUN;*/
-/**/
-/*DATA INNEW;SET PREGNANCY_7_1;WHERE PATIENT_DEID='Z101446';*/
-/*DATA INOLD;SET OUT.PREGNANCY_7_1;WHERE PATIENT_DEID='Z101446';*/
-/*RUN;*/
-/*DATA INOLDNEW;SET INOLD INNEW;RUN;*/
-/*DATA INOUTG;SET _OUTCOMESASSIGNED_7; *OGP_RESULT_OC_7_1;WHERE PATIENT_DEID='Z101446';*/
-/*RUN;*/
-/*DATA INPREN;SET PDO_RESULT_OC_7_1;WHERE PATIENT_DEID='Z101446';*/
-/*RUN;*/

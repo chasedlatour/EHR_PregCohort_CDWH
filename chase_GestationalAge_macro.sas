@@ -6,6 +6,8 @@ PURPOSE: Create the macro that will estimate LMPs for identified pregnancies.
 
 MODIFICATIONS:
 	-	05.2024 - Chase added annotations, reformatted, etc.
+	- 	05.2024 - Chase completed QC with minor change. SPH and CDL agreed on these changes and 
+		incorporated.
 
 **********************************************************************************************************/
 
@@ -81,7 +83,6 @@ MODIFICATIONS:
 
               /*count of total GA enc and GA codes across entire pregnancy (idxpren)*/
 /*              count(distinct b.enc_date) as Count_PregGADates label="distinct GA enc dates during preg", */
-/*CDL: QUESTION -- Is this total for the person given that there is no matching on dates?*/
 /*              count(distinct b.code) as Count_PregGACodes label="distinct GA enc codes during preg",*/
 
               /*gestational age info*/
@@ -90,8 +91,6 @@ MODIFICATIONS:
 
               /*gestational age and LMP estimates (will use each gestational age value for code)*/
               dt_gapreg - enc_date as Days_PregtoGAEnc label "Days Preg_Outcome - GA Enc",
-			  /*CDL: MODIFIED -- Wanted this to be 0 if GA enc AFTER the pregnancy outcome date.*/
-/*              dt_gapreg - (gestational_age_days + calculated days_pregtoGAenc) as dt_LMP  format=date. label "estimated LMP for code",*/
 			  case
                /*if GA-enc after Preg-OUtcome presume it is f/up visit and the GA-days do not need adjustment */
 			  	when calculated days_pregtoGAenc < 0 then dt_gapreg - gestational_age_days
@@ -164,9 +163,6 @@ MODIFICATIONS:
       	from pregs a 
 		left join GESTAGEPren b  /*Gestational age encounters rolled up on the encounter date level - created in running file.*/
 		on a.patient_deid=b.patient_deid /*Grabbing all GA encounters for anyone with a pregnancy*/
-
-
-		/*CDL: QUESTION -- Can we add a joint on the encdate being within 7 days of the pregnancy outcome date?*/
       	where parent_code NE 1   /*exclude GA enc with parent codes (1) - keeps child (0) and no ga-enc recs (.)*/
       	group by a.patient_deid, a.idxpren;
     	quit;
@@ -306,7 +302,7 @@ MODIFICATIONS:
     ** pregs that have >1 ga-enc and GA encs within correct days of preg and match preg outcome;
     ** NOTE: applying 1c hierarchies those pregs with only code hierarchies that arent in 1c2 list
     **       (e.g. Delivery pregs with only Missing code hierarchies) CANNOT trigger Top flag
-    **       these are set to top_pregga_hierarchy=99, wont be captured in 1c1 but in 1c2          <====ok? CL - yes, if not in hierarchy, then should not be used.
+    **       these are set to top_pregga_hierarchy=99, wont be captured in 1c1 but in 1c2 
     *******************************************************************************************;
 
     proc sql stimer;*apply 1c hierarchy;
@@ -574,7 +570,7 @@ MODIFICATIONS:
 	              ) b 
            	on a.idxpren = b.idxpren
     	;
-		quit; /*CDL: ADDED this line*/
+		quit; 
 
 	/*Prep the data for Step 11b, similar to the steps previously.*/
     proc sql;

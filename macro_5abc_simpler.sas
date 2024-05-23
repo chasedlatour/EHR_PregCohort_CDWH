@@ -24,6 +24,8 @@ MACROS coded in program:
 MODIFICATIONS:
 	- 05.2024 - Chase modified formatting, etc.
 	- 05.2024 - Chase modified PAIREVAL macro
+	- 05.2025 - CDL conducted QC. SPH and CDL reviewed. All modifications were agreed upon
+		by both.
 
 ************************************************************************************************/
 
@@ -319,9 +321,7 @@ INPUT:
 
 	          	OutNext_Assigned = lot ;
 	          	OutNext_CodeType = loc ;
-				/*CDL: MODIFIED -- Want to prioritize RXs over DXx for abortion outcomes*/
 				outnext_codetype_cd = put(outnext_codetype, $outcdrxoverdx.);
-/*	            outnext_codetype_cd = put(outnext_codetype, $outcd.);*/
 	          	OutNext_Mifepristone = lmf;
 	          	OutNext_Misoprostol = lms;
 	          	OutNext_InpatPRDelivery= lid;
@@ -381,8 +381,6 @@ INPUT:
 	         		Preg_MIFE = mifepristone;
 	         		Preg_MISO = misoprostol;
 	         		Preg_Outcome = outcome_assigned&ALG.;
-					/*CDL: MODIFIED -- Want to prioritize RXs over DXx for the hierarchy -- Created new format*/
-/*	         		Preg_CodeType =  put(outcome_assigned_codetype&ALG. , $outcd.);*/
 					Preg_CodeType =  put(outcome_assigned_codetype&ALG. , $outcdrxoverdx.);
 	         		Dt_Preg_Outcome = dt_outcome_assigned&ALG.;
 	        	%end;      
@@ -412,8 +410,7 @@ INPUT:
 	              	else if outnext_assigned in ('UDL') and days_outEndnextStart < 154 then SamePregnancy=1;
 	         	end;
 
-	/*         	*12.13 ACCt for outcome1 re-assigned RX-MIS,RX-MIF;*/
-	         	else if PREG_Outcome in: ('SAB' 'IAB' 'UAB' 'RX') then do; /*CDL: QUESTION -- No longer should be RX, right? right-sph*/
+	         	else if PREG_Outcome in: ('SAB' 'IAB' 'UAB') then do; 
 	          		if outnext_assigned in ('LBS' 'LBM' 'MLS') and days_outEndnextStart < 140 then SamePregnancy=1;
 	              		else if outnext_assigned in ('SB') and days_outEndnextStart < 140 then SamePregnancy=1;
 	              		else if outnext_assigned in ('EM') and days_outEndnextStart < 42 then SamePregnancy=1;
@@ -484,7 +481,7 @@ INPUT:
 	       	end;
 	
 			/*CDL: Conceptually, no pregnancy outcome groups should make it to these lines of code.
-			QUESTION -- What are these lines doing? pregnancyoutcomegroupsevaluated is no longer a variable in the dataset*/
+			Holdover from previous versions. Retained to capture issues.*/
 			else if pregnancyoutcomegroupsevaluated >0 then OUT_E=1; %*this pair not the same preg so revert to prev pairing;
 	       	else  OUT_D=1; %*all others are not the same pregnancy so link to new prenatal;
 
@@ -507,18 +504,6 @@ INPUT:
 			group was too long after the first for the outcomes identified.*/
 	      	data R&round._F_Fin; 
 	       	set R&Round._E_done;
-				/*CDL: MODIFIED -- I dont think that this was working as intended. outcome_assigned_codetype is a 3-integer
-				variable, not the DX, PR, RX variable.
-				Also, using the outcdrxoverdx format here*/
-/*	         	if outcome_assigned_codetype&ALG.='RX' and mifepristone =1 then PREG_CodeType='RF'; %*Prioritizing mifepristone*;*/
-/*	         		else if outcome_assigned_Codetype&ALG.='RX' then PREG_CodeType='RS'; */
-/*	         		else PREG_CodeType= Put(outcome_assigned_codetype&ALG., $outcd.); */
-
-				/*CDL: QUESTION -- Is this modification done for the other pregnancies when eventually assigned to F_FIN?*/
-                /*CDL/SPH - We do want variables to have 3-digit coding so Need to remove RX/RF/RS assignment (5.23)*/
-/*				if put(outcome_assigned_codetype&ALG.,$outcdrxoverdx.) = 'RX' and mifepristone = 1 then PREG_CodeType='RF';*/
-/*					else if put(outcome_assigned_codetype&ALG.,$outcdrxoverdx.) = 'RX' then PREG_CodeType = 'RS';*/
-/*					else PREG_CodeType = Put(outcome_assigned_codetype&ALG., $outcdrxoverdx.);*/
 
 					PREG_CodeType = Put(outcome_assigned_codetype&ALG., $outcdrxoverdx.);
 
@@ -552,9 +537,6 @@ INPUT:
 	        Array dxord(*) SAB IAB UAB EM AEM SB LBM LBS MLS UDL;  %*this is hiearchy 4 5b.2b;
 
 	        %*select the outcome for the paired outcomegrps - 5b.2;
-			/*CDL: MODIFIED -- the original variable reference wasnt the PR-DX-RX set up. I think that I might
-			have made a new version of this variable and so updating it to point at the right one.*/
-/*	        PREG_CodeTypex = cats(PREG_CodeType,'-',OutNext_Codetype); %*DX-DX, DX-PR, DX-PR;*/
 			PREG_CodeTypex = cats(PREG_CodeType,'-',OutNext_CodeType_cd /*OutNext_Codetype*/);
 
 	        tmp_found=0;
@@ -620,12 +602,6 @@ INPUT:
 					PREG_Outcome = OutNext_Assigned;
 				end;
 				%*else if both equal preg_miso (only option for this else if statement, then keep everything the same;
-				/*Original code*/
-/*	        	if PREG_MIFE =1 or outnext_mifepristone=1 then PREG_MIFE=1;*/
-/*	            	else if PREG_MISO = 1 or outnext_misoprostol=1 then PREG_MISO=1;*/
-/*	              	*no need to update date since code type did not change;*/
-/*	                *IF 2ND DATE IS HIGHER PRIORITY OUTCOME (IN DXORD) THEN RESET DATE;*/
-/*	               	PREG_Outcome = 'UAB';*/
 	        end;  
 
 	        else if PREG_CodeTypex in ( "DX-DX" ) then do i=1 to dim(dxord) until (tmp_found=1);
@@ -680,9 +656,6 @@ INPUT:
 			/*Deals with DX-RX cases for MISO in second*/
 	        else if Outnext_codetype_cd = 'RX' And Outnext_misoprostol=1 then do;
 	          	PREG_MISO=1;
-				/*CDL: MODIFIED -- Should apply for all abortion outcomes, not just UAB.
-				Dont need to modify PREG_Outcome*/
-/*	          	PREG_Outcome = 'UAB';*/
 				PREG_Outcome = OutNext_Assigned;
 	          	PREG_CodeType='RX';
 	          	dt_PREG_Outcome = outnext_outcomedt;
@@ -700,7 +673,7 @@ INPUT:
 	          	dt_PREG_Outcome = outnext_outcomedt;
 	        end;
 
-			/*CDL: ADDED -- For all, we want to roll up the medication infomratoin across all pregnancy outcome groups evaluated.*/
+			/*Roll up the medication information across all pregnancy outcome groups evaluated.*/
 			PREG_MIFE = max(PREG_MIFE, outnext_mifepristone);
 			PREG_MISO = max(PREG_MISO, outnext_misoprostol);
 
@@ -766,7 +739,7 @@ INPUT:
 	    run;
 
 	    Data R&Round._Final ; 
-		set r&round._F_fin /*Thso ewhere pregnancy otucome determined to be correct in an earlier set of steps.*/
+		set r&round._F_fin /*Those where pregnancy otucome determined to be correct in an earlier set of steps.*/
 			r&round._I_fin ; 
 		run;
 

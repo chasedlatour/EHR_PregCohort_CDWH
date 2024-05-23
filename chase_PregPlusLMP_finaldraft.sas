@@ -7,6 +7,10 @@
 ***           that will run all linked gestational encounters through the algorithm to select  *;
 ***           ^best^ LMP estimate for those that have eligible GA encounters based on the preg *;
 ***           outcome and GA encounter timing or table-based timing for outcome (step3)        *;
+
+***	MODIFICATIONS:
+	- 	05.2024 - CDL reformatted and added annotation. Conducted QC. SPH and CDL agreed on
+		any changes added to the program.
 ************************************************************************************************;          
 */run;;;;
 
@@ -25,6 +29,11 @@ TABLE OF CONTENTS:
 
 
 
+
+
+
+
+
 /***********************************************************************************************
 
 									00 - SET LIBRARIES, ETC.
@@ -37,9 +46,9 @@ options nocenter noreplace mprint mlogic  minoperator mindelimiter=',';
 *Set up paths - will need to be modified dependent upon file structure.
 This points to the TraCS server folder where all our data, programs, etc. are stored;
 *Sharon;
-*%let xdr= %str(\\ad.unc.edu\med\tracs\groups\Research\CDWH\Latour_Chase_22-0689\);
+%let xdr= %str(\\ad.unc.edu\med\tracs\groups\Research\CDWH\Latour_Chase_22-0689\);
 *Chase;
-%let xdr=%str(W:/);
+*%let xdr=%str(W:/);
 
 *Set up the necessary libraries;
 
@@ -58,9 +67,10 @@ libname outint "&xdr./DATA\20230328_Data_Pull_01\analysis\int_20230516\20240418\
 
 *Pull in the format statements;
 *Sharon;
-*%inc "&Xdr.\PROGRAMS\sharon\Preg_Outcomes\chase_Step0_FormatStatements.sas";
+%inc "&Xdr.\PROGRAMS\preg_encounter_algorithm\chase_Step0_FormatStatements.sas";
+*OLD: %inc "&Xdr.\PROGRAMS\sharon\Preg_Outcomes\chase_Step0_FormatStatements.sas";
 *Chase;
-%inc "&Xdr./PROGRAMS/sharon/Preg_Outcomes/chase review/chase_Step0_FormatStatements.sas";
+*%inc "&Xdr./PROGRAMS/sharon/Preg_Outcomes/chase review/chase_Step0_FormatStatements.sas";
 
 
 
@@ -137,7 +147,8 @@ quit;
 **********************************************************************************************************;
 
 *** call macro that processes pregnancy+GA data to find LMP estimate;
-%inc "&Xdr.\PROGRAMS\sharon\Preg_Outcomes\chase_GestationalAge_macro.sas";
+%inc "&Xdr.\PROGRAMS\preg_encounter_algorithm\chase_GestationalAge_macro.sas";
+*OLD: %inc "&Xdr.\PROGRAMS\sharon\Preg_Outcomes\chase_GestationalAge_macro.sas";
 
 
 
