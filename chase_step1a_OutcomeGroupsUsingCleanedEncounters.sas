@@ -106,7 +106,7 @@ in the dataset*/
 
 
 *Transpose the dataset so that there is an indicator for 
-dx, pr, miso (rxa), and mife (rxb) for each encounter;
+dx, pr, miso (rxa), and mife (rxb) for each encounter and outcome;
 proc transpose data=outcomebytype out=outcomesbytype;
 	by patient_deid enc_key enc_base_class enc_date outcome;
 	id dxprrx; 
@@ -133,7 +133,7 @@ then be used in the macro.
 
 
 
-*Create dataset with the grouped outcomes within an outcome;
+*Coallesce the pregnancy outcome information within one variable.;
 proc sort data=outcomesbytype; 
 	by patient_deid enc_key enc_date;
 run;
@@ -382,7 +382,8 @@ option mprint symbolgen;
 **final outcome group assessment should be the same;
 
 *put back into original form - mainly to keep adjustments to previous version minimal;
-proc sort data= EncOUtcomeClean;by patient_deid enc_key enc_date;
+proc sort data= EncOUtcomeClean;
+	by patient_deid enc_key enc_date;
 run;
 proc transpose data=encoutcomeclean
                 out= encoutcomecleanrows (rename=(_name_=OUTCOME col1=DXPRRX));

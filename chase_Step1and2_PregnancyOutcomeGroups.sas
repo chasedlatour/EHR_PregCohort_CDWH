@@ -132,8 +132,8 @@ libname base "&xdr.\DATA\20230328_Data_Pull_01\analysis" access=r;
 *** Get the outcomes source datafile(s) ***;
 
 data codeoutcome;
- set int.codeoutcome int.codemed (in=a);
-  if a then codetype='med';
+ 	set int.codeoutcome int.codemed (in=a);
+  	if a then codetype='med';
 run;
 
 *

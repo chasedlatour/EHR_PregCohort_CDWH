@@ -116,14 +116,29 @@ OUTPUT:
      	Outcome_Concordant='not';
 
 		/*Create an array of the outcomes to determine which ones are concordant*/
-     	array x(*) LBM LBS MLS SB UDL  SAB IAB UAB AEM EM ;
+/*     	array x(*) LBM LBS MLS SB UDL  SAB IAB UAB AEM EM ;*/
+		/*CDL: MODIFICATION -- EM before AEM, consistent with other hierarchies*/
+		array x(*) LBM LBS MLS SB UDL  SAB IAB UAB EM AEM;
 
-      	if outcomegroup_OutcomesNORX_N in (0, 1) then do; /**1 outcome or 2 with uab=rx (0=> only outcome is Rx);*/
+		/*CDL: NOTE -- This wont work as expected if someone has a UAB w meds only and then the other outcome is a AEM or EM.*/
+/*      	if outcomegroup_OutcomesNORX_N in (0, 1) then do; %*1 outcome or 2 with uab=rx (0=> only outcome is Rx);*/
+/*        	concordant=1; *only 1 outcome for group = cannot be discordant;*/
+/*        	do i=1 to dim(x);*/
+/*          		if x(i) ne '000' then do;*/
+/*           			Outcome_Concordant = vname(x(i));  */
+/*           			Outcome_Concordant_Codetype= x(i);*/
+/*          		end;*/
+/*        	end;*/
+/*      	end;*/
+
+		/*CDL: MODIFICATION*/
+		array x2(*) LBM LBS MLS SB UDL  SAB IAB EM AEM UAB; %*UAB last so that only picked when info beyond med order;
+		if outcomegroup_OutcomesNORX_N in (0, 1) then do; /**1 outcome or 2 with uab=rx (0=> only outcome is Rx);*/
         	concordant=1; *only 1 outcome for group = cannot be discordant;
-        	do i=1 to dim(x);
-          		if x(i) ne '000' then do;
-           			Outcome_Concordant = vname(x(i));  
-           			Outcome_Concordant_Codetype= x(i);
+        	do i=1 to dim(x2);
+          		if x2(i) ne '000' then do;
+           			Outcome_Concordant = vname(x2(i));  
+           			Outcome_Concordant_Codetype= x2(i);
           		end;
         	end;
       	end;
