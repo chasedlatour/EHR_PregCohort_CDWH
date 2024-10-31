@@ -11,6 +11,11 @@ Purpose: Program pregnancy outcomes table steps 1a-1b8 of pregnancy algorithm,
          Formats shared by all outcome algorithms and macros for shared
          datasteps, including Concordant Outcomes
 
+MODIFICATIONS:
+	-	05.2025 - CDL reformatted and annotated. Conducted QC and reviewed
+		with SPH. All modifications were approved by both.
+
+    - 08.5.24 sph point to library setup file;
 *******************************************************************************/
 
 
@@ -47,50 +52,45 @@ TABLE OF CONTENTS:
 
 ******************************************************************************/
 
-***Specify options;
-ods listing;
-options nocenter  nodate dlcreatedir;
+/*Specify the location of files on the server*/
+/*Point to location of files - string/text will be added to libname statements; */
 
-***Specify the directory to which the libraries should be pointing
-
-This value will depend upon how your computer is mapped to the NC TraCS Server;
-*Sharon;
-*%let xdr= %str(\\ad.unc.edu\med\tracs\groups\Research\CDWH\Latour_Chase_22-0689\);
-*Chase;
-%let xdr=%str(W:/);
+%let xdr= %str(\\ad.unc.edu\med\tracs\groups\Research\CDWH\Latour_Chase_22-0689);
 
 
-***Specify necessary libraries
+%inc "&xdr.\PROGRAMS\preg_encounter_algorithm\chase_All_LibrariesAndOptions.sas";
 
-These values may change dependent upon your computer such as Mac versus PC.
-These are set up for PC.;
+/* ******* ALTERNATIVE to running %inc above, use the following libname statements ******; */
 
-*Data input - restricted so that do not overwrite the data;
-libname int "&xdr./DATA/20230328_Data_Pull_01/analysis/int_20230516" access=r;
+/**Data received - most ^raw^ code files, manipulations but no linkage to the reference files;*/
+/*libname Raw "&xdr\data\20230328_Data_Pull_01\analysis"  ;*/
+/**/
+/**/
+/**Data received and divided according to reference files as of date run;*/
+/**note: add datestamp to filename (option DLCREATEDIR above will create folder if doesnt exist);*/
+/**/
+/*libname int "&xdr.\data\20230328_Data_Pull_01\analysis\int_202408" ;                *<====== CHECK PATH;*/
+/**/
+/**/
+/**Data received and divided according to reference files as of date run;*/
+/**note: add datestamp to filename (option DLCREATEDIR above will create folder if doesnt exist);*/
+/**/
+/*libname Out "&xdr.\data\20230328_Data_Pull_01\analysis\int_202408\preg_alg" ;       *<====== CHECK PATH;*/
+/*libname Outd "&xdr.\data\20230328_Data_Pull_01\analysis\int_202408\preg_alg\details" ;       *<====== CHECK PATH;*/
+/**/
+/**/
+/*****Specify the path for algorithm programs;*/
+/*%let algpath=&xdr.\programs\preg_encounter_algorithm;             *<===== CHECK PATH; */
+*/
+;;;;
+%put &algpath.;
 
-*Create an intermediate folder for outputting data;
-libname out "&xdr.DATA/20230328_Data_Pull_01/analysis/int_20230516/%sysfunc(date(),yymmddn8.)/";
-    
-*libname oldint "&xdr\data\20221220\analysis\int_20230329" access=r;
+*to match libs referenced below;
+libname base(raw);
+libname po(outd);
 
-
-****Specify the library to get the encounter and medication order data;
-libname base "&xdr.\DATA\20230328_Data_Pull_01\analysis" access=r;
-
-
-****Specify the path for algorithm programs;
-
-*Sharon local version
-%let lalgpath=C:\Users\peacocks\OneDrive - University of North Carolina at Chapel Hill\_projects\mollie\;
-*Version on the NC TraCS Server;
-*Sharon version;
-*%let algpath=&xdr.\programs\sharon\preg_outcomes;
-
-*CDL version;
-%let algpath=&xdr.\programs\sharon\preg_outcomes\chase review;
-
-%let outpath = &algpath.;
-
+%let outpath = &algpath.\step12out;
+libname toutp "&outpath.";libname toutp; *(use lib statement to create directory if doesnt already exist);
 
 
 
@@ -132,8 +132,8 @@ libname base "&xdr.\DATA\20230328_Data_Pull_01\analysis" access=r;
 *** Get the outcomes source datafile(s) ***;
 
 data codeoutcome;
- set int.codeoutcome int.codemed (in=a);
-  if a then codetype='med';
+ 	set int.codeoutcome int.codemed (in=a);
+  	if a then codetype='med';
 run;
 
 *
@@ -223,9 +223,9 @@ within one pregnancy outcomg group.
 		concordance indicators. This dataset is used to output a descritpive RTF
 		file: &outpath.\Step1b1_Concordance_&grpdsn._%sysfunc(date(),yymmddn8.).rtf;
 
-/*%inc "&algpath.\chase_Step1b_AssignAllConcordanceFlagMacro.sas";  */
+%inc "&algpath.\chase_Step1b_AssignAllConcordanceFlagMacro.sas";  
 *CDL modification;
-%inc "&algpath./chase_Step1b_AssignAllConcordanceFlagMacro.sas";  
+/*%inc "&algpath./chase_Step1b_AssignAllConcordanceFlagMacro.sas";  */
 
 
 

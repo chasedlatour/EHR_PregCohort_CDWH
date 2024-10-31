@@ -2,7 +2,7 @@
 
 Program: chase_Step1b_AssignOutcome_Algorithm3.sas
 
-Programmer: Sharon 
+Programmer: Sharon (SPH)
 
 Purpose: Assigns pregnancy outcomes to pregnancy outcome groups using the 
 proposed methodology in Algorithm 3.
@@ -11,6 +11,8 @@ Modifications:
 	- 04-29-24: Chase (CDL) added comments throughout and modified appearance.
 		Suggested changes to how we are collecting the codetype information 
 		for outcome1.
+	- 05.2024: Chase conducted QC. SPH and CDL reviewed. All modifications were
+		reviewed and agreed upon.
 
 *******************************************************************************/
 
@@ -43,7 +45,6 @@ set &discdsn (in=b);
 	*First, if there is a delivery procedure code present...;
   	if put(delivery,$outcdpr.) = 1 then do;*;
 
-		*CDL: MODIFIED -- Cleaner than original code but provided the same result among those with discordant3 = 1;
 		**step 1b1 part 2;
 	    *1 - ...and concordant delivery codes (redo table 1 check);
 		if lbm NE ('000') /*and udl NE ('000')*/ And SB='000' And LBS='000' and MLS='000' 
@@ -57,30 +58,6 @@ set &discdsn (in=b);
 		else if UDL NE ('000') and SB In ('000') And MLS='000' And LBM='000' and LBS='000' 
 	        then do; discordant3=1; Disc_OutPot3='PRD-UDL';end;
 
-/*	    **step 1b1 part 2;*/
-/*	    *1 - ...and concordant delivery codes (redo table 1 check);*/
-/*	    if lbm NE ('000') and udl NE ('000') And SB='000' And LBS='000' and MLS='000' */
-/*	         then do; discordant3=1; Disc_OutPot3='PRD-LBM';end;*/
-/*	    else if lbs NE ('000') and udl NE ('000') And SB='000' And LBM='000' and MLS='000' */
-/*	        then do; discordant3=1; Disc_OutPot3='PRD-LBS';end;*/
-/*	    else if mls NE ('000') and udl NE ('000') And SB='000' And LBM='000' and LBS='000'*/
-/*	         then do; discordant3=1; Disc_OutPot3='PRD-MLS';end;*/
-/*	    else if sb NE ('000') and udl NE ('000') And MLS='000' And LBM='000' and LBS='000' */
-/*	        then do; discordant3=1; Disc_OutPot3='PRD-SB';end;*/
-/**/
-/*	    *note: this is somewhat redundant - only dif from above is UDL;*/
-/*	    *if ignoring non-delivery outcomes (per note) then single delivery outcome types are concordant;*/
-/*	    else if lbm NE ('000') and udl In ('000') And SB='000' And LBS='000' and MLS='000' */
-/*	         then do; discordant3=1; Disc_OutPot3='PRD-LBM';end; *only delivery is lbm though may also have SAB etc;*/
-/*	    else if lbs NE ('000') and udl In ('000') And SB='000' And LBM='000' and MLS='000' */
-/*	        then do; discordant3=1; Disc_OutPot3='PRD-LBS';end;*/
-/*	    else if mls NE ('000') and udl In ('000') And SB='000' And LBM='000' and LBS='000'*/
-/*	         then do; discordant3=1; Disc_OutPot3='PRD-MLS';end;*/
-/*	    else if sb NE ('000') and udl In ('000') And MLS='000' And LBM='000' and LBS='000' */
-/*	        then do; discordant3=1; Disc_OutPot3='PRD-SB';end;*/
-/*	    else if UDL NE ('000') and SB In ('000') And MLS='000' And LBM='000' and LBS='000' */
-/*	        then do; discordant3=1; Disc_OutPot3='PRD-UDL';end;*/
-  
 	    *2 - ...and discordant delivery codes;
 	    else do;
 	      Discordant3=2; Disc_OutPot3="PRD-Dsc"; *has deliv proc but combo of outcomes discordant;
@@ -97,17 +74,7 @@ set &discdsn (in=b);
 
 run;
 
-*CHECK - Rewrite gives the same results.;
-/*data test;*/
-/*set &discdsn._int_Alg3 ;*/
-/*	where discordant3 = 1;*/
-/*run;*/
-/*proc freq data=test;*/
-/*	table discordant3*test;*/
-/*run;*/
-/*proc freq data=&discdsn._int_Alg3;*/
-/*	table discordant3 / missing; *Should be 1, 2, or 3;*/
-/*run;*/
+
 
 
 
@@ -124,7 +91,6 @@ data &NewDSn._alg3;
  	outassgn_pt1='unk';
 
  	array hier(*) SAB IAB UAB SB LBM LBS MLS UDL EM AEM ; *hierarchy for pt2 Step 1b.5 (was step3b.5;
- 	*array hiert1(*)  LBM LBS MLS SB UDL SAB IAB UAB EM AEM; *1b1 (was 3b.1 - table 1); *CDL: Commented out - not used elsewhere in the program;
 
 	**Check for code type (proc/diag/rx) and assign outcome based on Hierarchy for algorithm hier(*);
 
@@ -152,7 +118,7 @@ data &NewDSn._alg3;
 
 			else if dx_n >=1 then do i=1 to 10 until (outassgn_pt1 ne 'unk');
 				*CDL: MODIFIED -- None should have procedure codes at this point, so a good check that working right;
-	       		*if hier(i) in ('100','110','101','111', '102','112', '103','113') then do;  *CDL: ADDED comma between 111 and 102;
+	       		*if hier(i) in ('100','110','101','111', '102','112', '103','113') then do;  
 				if hier(i) in ('100','101','102','103') then do;
 	         		outassgn_pt1= vname(hier(i));
 	       		end;
@@ -168,20 +134,12 @@ data &NewDSn._alg3;
   	 *now step6 - 3b.6 - discordant abortion clean up;
  	 If outassgn_pt1 in ('SAB' 'IAB' 'UAB' ) then do;
 
-	 	*CDL: MODIFIED -- This was a bit cleaner to read and same results.;
 		if SAB ne ('000') and IAB ne ('000') then outassgn_pt2='UAB'; *Deal w discordant abortion outcomes first;
 				else if SAB ne ('000') then outassign_pt2='SAB';
 				else if IAB ne ('000') then outassign_pt2 = 'IAB';
 		*NOTE: Some may have meds for IAB or SAB because they had concordant codes on an encounter whihc were 
 				rolled up to the group level;
 
-/*		if sab ne '000' and iab ne '000' then outassgn_pt2='UAB'; */
-
-/*  		else do ;*3b.6.2 - go back to table 1 for abortion;*/
-/*         	if sab NE ('000') and uab NE ('000') then outassgn_pt2='SAB'; */
-/*    			else if iab NE ('000') and uab NE ('000') then outassgn_pt2='IAB';*/
-/*    			else if sab='000' and iab='000' and uab NE ('000') then outassgn_pt2='UAB';*/
-/*  		end;*/
 
  	 end;
 
@@ -209,31 +167,19 @@ run;
 proc format ;value onepl 1-high='1+';run;
 
 
-*Checks - Sharon and Chase code gives the same results;
-/*proc freq data= &NewDSn._alg3;*/
-/*	tables outcome_assigned3;*/
-/*run;*/
-/**/
-/*proc freq data= &Newdsn._alg3;*/
-/*	table outcome_assigned3 outcome_assigned_codetype3 ;*/
-/*run;*/
-/**/
-/*proc freq data= &Newdsn._alg3;*/
-/*	table outcome_assigned3 outcome_assigned_codetype3 ;*/
-/*run;*/
-/**/
-/**/
-/*proc freq data= &newdsn._alg3;*where outcome_assigned3='unk';*/
-/*where outassgn_pt1='UAB' and outcome_assigned3 ne 'UAB';*/
-/**table LBM* LBS* MLS* SB* UDL* SAB* IAB* UAB* EM* AEM /list missing;*/
-/**table delivery* SAB* IAB* UAB* EM* AEM *pr_n*outassgn_pt1* discordant3 /list missing;*/
-/*table delivery* SAB* IAB* UAB* EM* AEM  * discordant3 *outcome_assigned3 /list missing;*uab-pr other ab not pr;*/
-/*format pr_n onepl.;*/
-/*run;*/
+
+
+
+
+
+
+
+
+
 
 /*Output a RTF file for easy reviewing*/
 
-ods rtf file = "&outpath.\Step1b_ReviewAlgorithm3_&Newdsn._%sysfunc(date(),yymmddn8.).rtf" style=minimal;
+ods rtf file = "&outpath.\Step1b_ReviewAlgorithm3_Newds._%sysfunc(date(),yymmddn8.).rtf" style=minimal;
 
         title1 "Step 1b - Algorithm 3 outcomes" ;
         proc freq data= &newdsn._alg3 ;

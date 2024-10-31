@@ -13,6 +13,8 @@ Modifications:
 	- 04-29-24: Chase (CDL) added comments throughout and modified appearance.
 	- 04-29-24: CDL modified how the RX and DXPRRX variables were being rolled up
 	 	across pregnancy outcomes (case when instead of max)
+	- 05.2024: CDL and SPH reviewed CDL QC. All changes were reviewed and 
+		agreed upon.
 
 *******************************************************************************/
 
@@ -72,7 +74,7 @@ proc sql;
 		1 as types  
   	from  codeoutcome
   	group by patient_deid, enc_key, enc_date, Calculated outcome, calculated dxprRX ;
-quit;
+	quit;
 *The output dataset has rows defined by distinct combinations of patient_deid,
 enc_key, enc_base_class, enc_date, outcome, dxprrx, and types;
 
@@ -106,7 +108,7 @@ in the dataset*/
 
 
 *Transpose the dataset so that there is an indicator for 
-dx, pr, miso (rxa), and mife (rxb) for each encounter;
+dx, pr, miso (rxa), and mife (rxb) for each encounter and outcome;
 proc transpose data=outcomebytype out=outcomesbytype;
 	by patient_deid enc_key enc_base_class enc_date outcome;
 	id dxprrx; 
@@ -133,7 +135,7 @@ then be used in the macro.
 
 
 
-*Create dataset with the grouped outcomes within an outcome;
+*Coallesce the pregnancy outcome information within one variable.;
 proc sort data=outcomesbytype; 
 	by patient_deid enc_key enc_date;
 run;
@@ -316,7 +318,7 @@ to give if concordant information is identified in o2.
 
      	*reset the outcome values based on info from the concordant pair (1=concordant, 2=mising);
        	&o1= encounter_concordant_codetype;
-        &o2= '000'; *CDL: QUESTION -- Not sure that its worth overwriting with 000;
+        &o2= '000'; 
     end;
 %mend;
 
@@ -382,7 +384,8 @@ option mprint symbolgen;
 **final outcome group assessment should be the same;
 
 *put back into original form - mainly to keep adjustments to previous version minimal;
-proc sort data= EncOUtcomeClean;by patient_deid enc_key enc_date;
+proc sort data= EncOUtcomeClean;
+	by patient_deid enc_key enc_date;
 run;
 proc transpose data=encoutcomeclean
                 out= encoutcomecleanrows (rename=(_name_=OUTCOME col1=DXPRRX));
@@ -499,43 +502,42 @@ STEP 1: CREATE THE OUTCOME GROUPS
 
 	/*Summarize information on the pregnancy outcome group level. Previous dataset on outcome level.*/
     proc sql; 
-     create table outcomesbyGroup2_&encgap. as
-      Select grp.*, types.* 
-      from 
+     	create table outcomesbyGroup2_&encgap. as
+      	Select grp.*, types.* 
+      	from 
 
-		/*Create some new variables in the outcomesbygroup_encgap dataset*/
-      	/** first subquery counts at the group level (1+ encounters)**/
-       (select distinct patient_deid, outcomegrp, min(startdt) as Dt_OutcomeGroup_Start, 
-				max(enddt) as Dt_OutcomeGroup_End, 
-             	count(distinct enc_key) as OutcomeGroup_Encounters_N,
-             	count(distinct enc_date) as OutcomeGroup_Dates_N, 
-             	count(distinct outcome) as OutcomeGroup_Outcomes_N ,  /*CDL: Change. Commented out the next line and retained this var*/
-/*             	count(distinct Case when dxprrx ne '001' then Outcome end ) as OutcomeGroup_Outcomes_N ,  */
-             	count(distinct Case when dxprrx not in ('000' '003' '002' '001') then Outcome end ) as OutcomeGroup_OutcomesNoRX_N ,  
-              	calculated dt_outcomegroup_end - calculated dt_outcomegroup_start +1 as OutcomeGroup_Span ,
-/*              COUNT(distinct case when DelivPR_Inp then enc_key end) as OutcomeGroup_InpPrEncounters_N ,*/
-              	COUNT(distinct case when DelivPR_Inp then enc_key end) as OutcomeGroup_DelivPRInpatEnc_N ,
-              	COUNT(distinct case when DelivPR_Out then enc_key end) as OutcomeGroup_DelivPROutpatEnc_N ,
-              	COUNT(distinct case when DelivPR_Em then enc_key end) as OutcomeGroup_DelivPREmergEnc_N ,
-             	max(days_prevgroup) as Days_PrevOutcomeGroup
-        from outcomesbyGroup_&encgap. 
-		group by patient_deid, outcomegrp ) As Grp
-
+			/*Create some new variables in the outcomesbygroup_encgap dataset*/
+	      	/** first subquery counts at the group level (1+ encounters)**/
+	       (select distinct patient_deid, outcomegrp, min(startdt) as Dt_OutcomeGroup_Start, 
+					max(enddt) as Dt_OutcomeGroup_End, 
+	             	count(distinct enc_key) as OutcomeGroup_Encounters_N,
+	             	count(distinct enc_date) as OutcomeGroup_Dates_N, 
+	             	count(distinct outcome) as OutcomeGroup_Outcomes_N ,  /*CDL: Change. Commented out the next line and retained this var*/
+	/*             	count(distinct Case when dxprrx ne '001' then Outcome end ) as OutcomeGroup_Outcomes_N ,  */
+	             	count(distinct Case when dxprrx not in ('000' '003' '002' '001') then Outcome end ) as OutcomeGroup_OutcomesNoRX_N ,  
+	              	calculated dt_outcomegroup_end - calculated dt_outcomegroup_start +1 as OutcomeGroup_Span ,
+	/*              COUNT(distinct case when DelivPR_Inp then enc_key end) as OutcomeGroup_InpPrEncounters_N ,*/
+	              	COUNT(distinct case when DelivPR_Inp then enc_key end) as OutcomeGroup_DelivPRInpatEnc_N ,
+	              	COUNT(distinct case when DelivPR_Out then enc_key end) as OutcomeGroup_DelivPROutpatEnc_N ,
+	              	COUNT(distinct case when DelivPR_Em then enc_key end) as OutcomeGroup_DelivPREmergEnc_N ,
+	             	max(days_prevgroup) as Days_PrevOutcomeGroup
+	        from outcomesbyGroup_&encgap. 
+			group by patient_deid, outcomegrp ) As Grp
 
       Left join
 
-	  /*Summarize the Dx Pr and Rx information for each outcome within the pregnancy outcome groups*/
-      /** 2nd subquery counts at the outcome w/in group (1+ rows for same outcometype combined)**/
-       (select distinct patient_deid, outcomegrp, outcome, 
-             /*outcome,*/max(dx) as Dx, max(pr) as PR,  /*CDL: Commented out 2nd outcome*/
-			 /*CDL: MAX(RX) does not give the desired output. Specifically, if they had both on 
-			 different encounters (observed), then we would only see 2 not 3, as would be correct*/
-/*			max(rx) as Rx, */
-			case
-				when count(distinct (case when rx=0 then . else rx end)) > 1 then 3 else max(rx) end as Rx,
-/*             cats(max(dx),max(pr),max(rx)) as DxPrRx*/
-			 cats(max(dx), max(pr), case when count(distinct (case when rx=0 then . else rx end)) > 1 then 3 else max(rx) end) as DxPrRx
-        from outcomesbyGroup_&encgap. group by patient_deid, outcomegrp, outcome) As Types
+		  /*Summarize the Dx Pr and Rx information for each outcome within the pregnancy outcome groups*/
+	      /** 2nd subquery counts at the outcome w/in group (1+ rows for same outcometype combined)**/
+	       (select distinct patient_deid, outcomegrp, outcome, 
+	             /*outcome,*/ max(dx) as Dx, max(pr) as PR,  
+				 /*CDL: MAX(RX) does not give the desired output. Specifically, if they had both on 
+				 different encounters (observed), then we would only see 2 not 3, as would be correct*/
+	/*			max(rx) as Rx, */
+				case
+					when count(distinct (case when rx=0 then . else rx end)) > 1 then 3 else max(rx) end as Rx,
+	/*             cats(max(dx),max(pr),max(rx)) as DxPrRx*/
+				 cats(max(dx), max(pr), case when count(distinct (case when rx=0 then . else rx end)) > 1 then 3 else max(rx) end) as DxPrRx
+	        from outcomesbyGroup_&encgap. group by patient_deid, outcomegrp, outcome) As Types
 
       On Grp.patient_deid = Types.Patient_deid and Grp.outcomegrp = Types.outcomegrp
     ;
@@ -719,19 +721,13 @@ STEP 1: CREATE THE OUTCOME GROUPS
       SB='Stillbirth (100=dx, 010=pr, 001=miso, 002=mife, 003=miso+mife)'
       AEM='Abortion, Ectopic, or Molar (100=dx, 010=pr, 001=miso, 002=mife, 003=miso+mife)'
       MLS='Mixed Delivery (100=dx, 010=pr, 001=miso, 002=mife, 003=miso+mife)'
-	  /*CDL: Modified labels*/
-/*      Inpatient="Inpatient base class for encounters in group"*/
-/*      Outpatient="Outpatient base class for encounters in group"*/
-/*      Emergency='Emergency base class for encounters in group'*/
-/*      Mifepristone="Mifepristone order for encounters in group"*/
-/*      Misoprostol="Misoprostol order for encounters in group"*/
 	  Inpatient="At least one inpatient encounter in group"
       Outpatient="At least one outpatient encounter in group"
       Emergency='At least one emergency encounter in group'
       Mifepristone="At least one mifepristone order in group"
       Misoprostol="At least one misoprostol order in group"
 
-      /*added to dsn later*/ /*CDL added to label*/
+      /*added to dsn later*/ 
       Delivery = "Delivery outcome (LBM,LBS,SB,MLS,UBL) (100=dx, 010=pr, 001=miso, 002=mife, 003=miso+mife)"
       Abortion = "Abortion outcome (SAB,IAB,UAB)(100=dx, 010=pr, 001=miso, 002=mife, 003=miso+mife)"
       Ectopic = "Ectopic/Molar Abortion (EM, AEM) (100=dx, 010=pr, 001=miso, 002=mife, 003=miso+mife)"

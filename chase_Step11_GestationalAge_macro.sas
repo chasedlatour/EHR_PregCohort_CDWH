@@ -10,6 +10,8 @@ MODIFICATIONS:
 		incorporated.
         06.18.24 - sph correct to use preg_outcome_clean from the source pregnancy dsn (lines 46-66)
                    and change the macro to use Preg_outcome_CLEAN instead of Preg_Outcome
+    -   07.21.24 - SPH add macvar PODS to account for simple and complex prenatal-only datasets
+
 **********************************************************************************************************/
 
 
@@ -44,11 +46,11 @@ MODIFICATIONS:
 
     *>>>> GA STEP 0 <<<<*;
 
-	data pregs (keep=patient_deid idxpren dt_indexprenatal dt_ltfu dt_preg: prenonly outconly dt_ga: preg_:
+	data pregs_&pods.  (keep=patient_deid idxpren dt_indexprenatal dt_ltfu dt_preg: prenonly outconly dt_ga: preg_:
                  /*preg_outcome*/ preg_outcome_clean dt_prenenc1st dt_prenenclast algorithm pregnancy_number )
-         pregnancy_&encw._&alg. /*Making working directory version of the dataset*/
+         pregnancy_&pods._&encw._&alg. /*Making working directory version of the dataset*/
          ;
-   	set Out.pregnancy_&encw._&alg. (rename=(preg_outcome = preg_outcome_crude));
+   	set Out.pregnancy_&pods._&encw._&alg. (rename=(preg_outcome = preg_outcome_crude));
 
 		/*Determine dates for looking for gestational age codes*/
     	if prenonly then Dt_GAEncLB = dt_ltfu -7;
@@ -64,6 +66,8 @@ MODIFICATIONS:
       	*preg_outcome = preg_outcome_clean; *06.18.24;
 
     run;
+
+	/*Outputs two equivalent datasets*/
 
 
 
@@ -170,7 +174,7 @@ MODIFICATIONS:
         			end as gest_age_table,
         		dt_gapreg - (calculated gest_age_table) as Dt_LMP_table 
 
-      	from pregs a 
+      	from pregs_&pods.  a 
 		left join GESTAGEPren b  /*Gestational age encounters rolled up on the encounter date level - created in running file.*/
 		on a.patient_deid=b.patient_deid /*Grabbing all GA encounters for anyone with a pregnancy*/
       	where parent_code NE 1   /*exclude GA enc with parent codes (1) - keeps child (0) and no ga-enc recs (.)*/
@@ -179,12 +183,12 @@ MODIFICATIONS:
 
     **for later list of pregids to update;
 	proc sql;
-     	create table PregsList as
-      	select distinct pregs.*,
+     	create table pregs_&pods.List as
+      	select distinct pregs_&pods. .*,
              max(case when gaoutcmatch=1 and gadaysmatch=1 then 1 else 0 end) as GA_Match_OutcDays label="Any GA enc matching preg outc and timing",
              max(ga_prenatalwindow) as Any_GA_PrenatalWindow label="Any GA enc between 1st prenatal and end preg/ltfu",
              dt_lmp_table format=date. label="Estimated LMP based on pregnancy outcome table"
-      	from pregs (drop=dt_gaencub dt_gaenclb) a 
+      	from pregs_&pods.  (drop=dt_gaencub dt_gaenclb) a 
 		join anygaenc b 
 		on a.idxpren=b.idxpren
       	group by a.patient_deid, a.idxpren
@@ -267,7 +271,7 @@ MODIFICATIONS:
     ** ga code hierarchy use min to keep ^top^ ;
     proc sql; *apply 1b.1 - one GA code with 1 LMP date estimate;
      	create table GaEnc_1b2 as
-      	select distinct a.patient_deid,a.idxpren,dt_gapreg,a.preg_outcome_Clean, dt_LMP ,days_pregtogaenc_ClosestAbs,
+      	select distinct a.patient_deid,a.idxpren,dt_gapreg,a.preg_outcome_Clean, dt_LMP, /*days_pregtogaenc_ClosestAbs,*/ /*CDL: COMMENTED OUT this variable - 10.31.2024*/
              	gaoutcmatch,gadaysmatch,Count_PregGACodes_ok,Count_PregGADates_ok,
              	min(ga_hierarchy) as GA_Hierarchy, '1b.2' as LMP_AlgStep, 1 as lmp_1galmp 
       	from anyga_EstLmps a 
@@ -276,6 +280,8 @@ MODIFICATIONS:
       	group by patient_deid,idxpren
      	;
     	quit;
+
+/*	proc sort nodupkey data=anyga_EstLmps out=xx; by idxpren; run;*/
 /*    proc sort nodupkey data=gaenc_1b2 out=xx;by idxpren;run;*57 dups now 0 after change to add hier earlier;*/
 /*    proc sql; create table xx as select * from gaenc_1b2 group by idxpren having count(*)>1;quit;*/
 /*    *because 2 ga_hierarchy - need top rank so take min;*/
@@ -285,6 +291,38 @@ MODIFICATIONS:
     merge gaenc_1b1 gaenc_1b2;
 		by patient_deid idxpren;
     run;
+
+/*	proc sql;*/
+/*		select count(patient_deid) as n_row from gaenc_1b;*/
+/*		select count(distinct cats(patient_deid, idxpren)) as n_distinct from gaenc_1b*/
+/*		;*/
+/*		quit;*/
+/**/
+/*	proc sql;*/
+/*		create table test_1b as */
+/*		select *, count(idxpren) as count */
+/*		from gaenc_1b*/
+/*		group by patient_deid, idxpren*/
+/*		having count >1*/
+/*		;*/
+/*		quit;*/
+/**/
+/*	proc sql;*/
+/*			create table test_1b_pregs as*/
+/*			select **/
+/*			from gaenc_1b2*/
+/*			where patient_deid in ('Z1100787','Z2610093','Z6789839') and*/
+/*                	 idxpren in (1005010, 1136776, 1748064)*/
+/*			;*/
+/*			quit;*/
+
+
+	/*Check*/
+/*	proc sql;*/
+/*		select count(patient_deid) as n_1b1 from gaenc_1b1;*/
+/*		select count(patient_deid) as n_1b2 from gaenc_1b2;*/
+/*		select count(patient_deid) as n_1b from gaenc_1b;*/
+/*		quit;*/
 
     *******************************************************************************************;
     ** Now get pregnancies for step 1c (i.e. those with >1 count_pregaLMPDates_ok 
@@ -298,14 +336,18 @@ MODIFICATIONS:
 
 
     proc sql; *1c_prep;
-     	create table gaenc_1c_pregs as 
+     	create table gaenc_1c_pregs_&pods.  as 
       	select * from anyga_estlmps
       	Where Count_PregLMPDates_ok > 1 ; /*those with 2+ LMP estimates*/
     	quit;
+
 /*    proc freq data=anyga_estlmps;*/
 /*		table count_preglmpdates_ok;*/
 /*	run;*/
     *range 1 to 9, median=1 (1-70%, 2=23%,3=5%);
+/*	proc sql;*/
+/*		select count(patient_deid) as n_row from gaenc_1c_pregs_&pods.;*/
+/*		quit;*/
 
     *******************************************************************************************;
     ** for 1c need to identify the number of GA encounters within hierarchys limiting pull to ;
@@ -314,6 +356,9 @@ MODIFICATIONS:
     **       (e.g. Delivery pregs with only Missing code hierarchies) CANNOT trigger Top flag
     **       these are set to top_pregga_hierarchy=99, wont be captured in 1c1 but in 1c2 
     *******************************************************************************************;
+/*	proc sql;*/
+/*		select count(patient_deid) as n_row from GaEnc_1c;*/
+/*		quit;*/
 
     proc sql stimer;*apply 1c hierarchy;
      	create table GaEnc_1c as
@@ -341,7 +386,7 @@ MODIFICATIONS:
                       count(distinct case when ga_hierarchy=3  then dt_LMP end) as Count_PregLMPHier3,
                       count(distinct case when ga_hierarchy=4 then dt_LMP end) as Count_PregLMPHier4
 
-              from gaenc_1c_pregs
+              from gaenc_1c_pregs_&pods. 
               group by patient_deid,idxpren
         	) 
 
@@ -372,7 +417,9 @@ MODIFICATIONS:
      	GROUP BY PATIENT_DEID, IDXPREN   ;   
        	;
     	quit;
-
+/*	proc sql;*/
+/*		select distinct count(patient_deid) from gaenc_1c1;*/
+/*		quit;*/
 
     ***************************************************************************************************
     ** 1c1 has 1 rec for each dt_LMP and code_hierarchy so to get MostFrequent 
@@ -427,7 +474,9 @@ MODIFICATIONS:
         Group by patient_deid,idxpren
      	;
     	quit;
-
+/*	proc sql;*/
+/*		select count(patient_deid) as n_row from gaenc_1c2_prep;*/
+/*		quit;*/
 
     /*****************************************************************************************
     ** now we have only GA enc with codes that are in the highest hierarchy for the preg outc
@@ -497,21 +546,38 @@ MODIFICATIONS:
 	run; 
 
     **see what pregnancies are left after step 1;
-    proc sort data=pregs;
+    proc sort data=pregs_&pods. ;
 		by patient_deid idxpren;
 	run;
     proc sort data=gaenc_1b out=x nodupkey;
 		by patient_deid idxpren;
 	run;*0 dups;
 
+/*	proc sql;*/
+/*		create table test as */
+/*		select patient_deid, idxpren, count(idxpren) as count*/
+/*		from gaenc_1b*/
+/*		group by patient_deid, idxpren*/
+/*		having count > 1*/
+/*		;*/
+/*		quit;*/
+/*	proc sql;*/
+/*		create table test2 as*/
+/*		select * */
+/*		from gaenc_1b*/
+/*		where patient_deid in ('Z1100787','Z2610093','Z6789839') and */
+/*				idxpren in (1005010, 1136776, 1748064);*/
+/*		quit;*/
+
     /*proc sort data=gaenc_1c1;by patient_deid idxpren;run; *0;*/
     /*data xx1;set gaenc_1c1;by patient_deid idxpren; if first.idxpren and last.idxpren then delete;run;*0;*/
 
     /* select count(distinct idxpren) from pregs;*229107;*/
 
+
 	/*Update the pregnancy list with the new LMP estimates*/
-    data PregsUpdt_1;
-    merge pregslist (in=a) 
+    data pregs_&pods.Updt_1;
+    merge pregs_&pods.list (in=a) 
            gaenc_1c2_ptb (in=c2 keep=idxpren dt_: lmp_: patient_deid) /*2+ lmp date top hier - complexpath*/
            gaenc_1c2_pta (in=c2 keep=idxpren dt_: lmp_: patient_deid) /*2+ lmp date top hier -min,max,avg*/
            gaenc_1c1 (in=c1 keep=idxpren dt_: lmp_: patient_deid)     /*1 lmp date top hier*/
@@ -522,6 +588,19 @@ MODIFICATIONS:
       	LMP_AlgBased =  (b or c1 or c2);
       	leftpreg=(a and not (b or c1 or c2));
     run;
+
+/*	proc sql;*/
+/*		select count(patient_deid) as n_row from pregs_&pods.list;*/
+/*		select count(distinct cats(patient_deid,idxpren)) as n_distinct_list from pregs_&pods.list;*/
+/*		select count(patient_deid) as n_row_1c2ptb, count(distinct cats(patient_deid,idxpren)) as n_distinct_1c2ptb from gaenc_1c2_ptb;*/
+/*		select count(patient_deid) as n_row_1c2pta, count(distinct cats(patient_deid,idxpren)) as n_distinct_1c2pta from gaenc_1c2_pta;*/
+/*		select count(patient_deid) as n_row_1c1, count(distinct cats(patient_deid,idxpren)) as n_distinct_1c1 from gaenc_1c1;*/
+/*		select count(patient_deid) as n_row_1b, count(distinct cats(patient_deid,idxpren)) as n_distinct_1b from gaenc_1b;*/
+/*		quit;*/
+
+/*	proc sort data=pregs_&pods.Updt_1 out=x nodupkey;*/
+/*		by patient_deid idxpren;*/
+/*	run;*3 dups;*/
 /*    proc freq;*/
 /*     *table step1b step1c1 step1c2 leftpreg* pregs*prenonly*outconly LMP_AlgBased*step1b*step1c1*step1c2/list;*/
 /*     table LMP_AlgBased*LMP_AlgStep / missing;*/
@@ -547,7 +626,7 @@ MODIFICATIONS:
      	create table anygaenc_step2 as 
 		select *
         from anygaenc a 
-		left join (select idxpren,LMP_AlgBased from PregsUpdt_1) b 
+		left join (select idxpren,LMP_AlgBased from pregs_&pods.Updt_1) b 
 		on a.idxpren =b.idxpren 
         where b.LMP_AlgBased = 0
            AND a.preg_outcome_Clean='UNK'   /*missing/unknown (prenonly) pregnancies */
@@ -749,8 +828,8 @@ MODIFICATIONS:
 
 	/*Finally, update the pregnancy information with the new LMP estimates*/
     /* select count(distinct idxpren) from pregs;*229107;*/
-    data PregsUpdt_2b;
-    merge PregsUpdt_1(in=a)
+    data pregs_&pods.Updt_2b;
+    merge pregs_&pods.Updt_1(in=a)
            gaenc_2_a1 (in=c1 keep=idxpren dt_: lmp_: patient_deid) 
            gaenc_2_a2 (in=c1 keep=idxpren dt_: lmp_: patient_deid) 
            gaenc_2_2b1 (in=c2 keep=idxpren dt_: lmp_: patient_deid) 
@@ -772,7 +851,7 @@ MODIFICATIONS:
     ***      if 2+ zhu test use zhu hierarchy (2d2);
     ***;
     proc sql;
-     	create table pregs_2c_zhu_test1st as 
+     	create table pregs_&pods._2c_zhu_test1st as 
       	select *, count(distinct zhu_test) as Count_PregZhuTests
       	From
 	       (select * 
@@ -780,7 +859,7 @@ MODIFICATIONS:
 	           (
 	           select distinct a.patient_deid,a.idxpren, dt_gapreg,preg_outcome_Clean,  dt_LMP , gestational_age_days,
 	                         dt_gaenc as Dt_ZhuTest format=date., zhu_test,zhu_hierarchy, DT_gaenc - DT_INDEXPRENATAL as days_zhu        
-	            from ANYgaenc a join (select idxpren,LMP_AlgBased from PregsUpdt_2b where LMP_AlgBased=0 and prenonly) a2
+	            from ANYgaenc a join (select idxpren,LMP_AlgBased from pregs_&pods.Updt_2b where LMP_AlgBased=0 and prenonly) a2
 	            on a.idxpren=a2.idxpren
 	            where not Missing(zhu_test) and GA_PrenatalWindow =1 
 	           )
@@ -797,13 +876,13 @@ MODIFICATIONS:
 
 		create table gaenc_2c1 as 
       	select *, '2c.1' as LMP_AlgStep 
-      	from pregs_2c_zhu_test1st
+      	from pregs_&pods._2c_zhu_test1st
       	where count_pregzhutests = 1
       	;
 
      	create table gaenc_2c2 as
       	select *, '2c.2' as LMP_AlgStep 
-      	from pregs_2c_zhu_test1st
+      	from pregs_&pods._2c_zhu_test1st
       	where count_pregzhutests > 1
       	group by patient_deid, idxpren
       	having zhu_hierarchy= min(zhu_hierarchy)
@@ -811,8 +890,8 @@ MODIFICATIONS:
     	quit;
 
 
-    data PregsUpdt_2cd;
-    merge PregsUpdt_2b (in=a)
+    data pregs_&pods.Updt_2cd;
+    merge pregs_&pods.Updt_2b (in=a)
            gaenc_2c1  (in=c1 keep=idxpren dt_: lmp_: patient_deid) 
            gaenc_2c2 (in=c2 keep=idxpren dt_: lmp_: patient_deid) 
     ;
@@ -829,9 +908,9 @@ MODIFICATIONS:
 *** FINAL STEP - Add LMPs to Pregnancy file ****;
 ************************************************;
 
-    Data Pregnancy_LMP_&encw._&alg. ;
-    set pregsupdt_2cd;
-        drop pregs leftpreg step2c1 step2c2 step2b_1 step2b_2 step2c1 step2c2 /*captured elsewhere*/
+    Data Pregnancy_LMP_&pods._&encw._&alg. ;
+    set pregs_&pods.updt_2cd;
+        drop pregs_&pods. leftpreg step2c1 step2c2 step2b_1 step2b_2 step2c1 step2c2 /*captured elsewhere*/
              lmp_1: lmp_gt: lmp_2:  /*didnt use consistently*/
              dt_lmp_avg/* calc not needed, wt avg more accurate*/
              ;

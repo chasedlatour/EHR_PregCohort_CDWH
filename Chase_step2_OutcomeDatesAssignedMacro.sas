@@ -9,7 +9,9 @@ to the pregnancy outcome groups (i.e., Step 2 of the cohort derivation).
 
 Modifications:
 	- 04-29-24: CDL made comments and applied standardized set up.
-
+	- 05.2025: CDL conducted QC. SPH and CDL reviewed. All modifications were
+		agreed upon by both.
+    - 08.05.24: sph - turn on adjustment for alg4 abortions dt (cdl added line)
 *******************************************************************************/
 
 
@@ -42,7 +44,7 @@ Modifications:
                        when Outcome_Assigned&i. in ("SB")  And b.outcome in ("SB" "UDL") and put(dxprrx ,$outcdpr.)='1' then Enc_Date
                        when Outcome_Assigned&i. in ("UDL") And b.outcome in ( "UDL") and put(dxprrx ,$outcdpr.)='1' then Enc_Date
 
-					   /*CDL: MODIFICATION -- Prioritize non-UDL delivery pr codes over UDL dx codes -- DISCUSS*/
+					   /*Prioritize non-UDL delivery pr codes over UDL dx codes*/
 					   /*NOTE: Some UDLs dont have any UDL pr codes because they had discordant delivery codes. Deal with that here.
                        If assigned outcome is UDL then pick earliest delivery proc code in outcome group*/
                        when Outcome_Assigned&i. in ("UDL") And put(b.outcome,$outclass.)='Delivery' and put(dxprrx ,$outcdpr.)='1' then Enc_Date
@@ -66,10 +68,12 @@ Modifications:
                        when Outcome_Assigned&i. in ("IAB") And b.outcome in ("IAB" "UAB") and put(b.dxprrx ,$outcdpr.)='1' then Enc_Date
                        when Outcome_Assigned&i. in ("UAB") And b.outcome in ("UAB") and put(b.dxprrx ,$outcdpr.)='1' then Enc_Date
 
-					   /*CDL: MODIFICATION -- Same as done for deliveries*/
 					   /*NOTE: Some UABs dont have UAB procedure codes but may have procedure codes for a SAB or IAB. We deal with those 
 					   UABs here. If a UAB doesnt have concordant proc codes, then first abortion proc code*/
 					   when Outcome_Assigned&i. in ("UAB") And put(b.outcome,$outclass.)='Abortion' and put(dxprrx ,$outcdpr.)='1' then Enc_Date
+
+					   /*CDL: ADDED for logical consistency -- SABs assigned via algortihm 4 but have a IAB pr code that was missed above*/
+					   when Outcome_Assigned&i. in ("SAB") And put(b.outcome,$outclass.)='Abortion' and put(dxprrx ,$outcdpr.)='1' and &i = 4 then Enc_Date
 
 					   /*med orders*/
                        when Outcome_Assigned&i. in ("SAB" "IAB" "UAB") And b.outcome in ("SAB" "IAB" "UAB") And substr(b.dxprrx,3) in ('2','3') then Enc_Date
@@ -111,7 +115,7 @@ Modifications:
                        when Outcome_Assigned&i. in ("SB")  And b.outcome in ("SB" "UDL") and put(dxprrx ,$outcdpr.)='1' then 2 /*"DEL-PR"*/
                        when Outcome_Assigned&i. in ("UDL") And b.outcome in ( "UDL") and put(dxprrx ,$outcdpr.)='1' then 2 /*"DEL-PR"*/
 
-					   /*CDL: ADDED -- I think we still need to deal with those UDLs that did not have a non-UDL code*/
+					   /*Deal with those UDLs that did not have a non-UDL code*/
 					   when Outcome_Assigned&i. in ("UDL") And put(b.outcome,$outclass.)='Delivery' and put(dxprrx ,$outcddx.)='1' then 2 /*"DEL-PR"*/
                       
                        when Outcome_Assigned&i. in ("LBM") And b.outcome in ("LBM" "UDL") and put(dxprrx ,$outcddx.)='1' then 3 /*"DEL-DX"*/
@@ -120,7 +124,7 @@ Modifications:
                        when Outcome_Assigned&i. in ("SB") And b.outcome in ("SB" "UDL") and put(dxprrx ,$outcddx.)='1' then 3 /*"DEL-DX"*/
                        when Outcome_Assigned&i. in ("UDL") And b.outcome in ("UDL") and put(dxprrx ,$outcddx.)='1' then 3 /*"DEL-DX"*/
 
-					   /*CDL: ADDED -- Same as above*/
+					   /*Same as above*/
 					   when Outcome_Assigned&i. in ("UDL") And put(b.outcome,$outclass.)='Delivery' and put(dxprrx ,$outcddx.)='1' then 3 /*"DEL-DX"*/
 
              		   /*ABORTION assigned - pic encounter any [conc] proc, mife/miso, diag*/
@@ -128,8 +132,13 @@ Modifications:
                        when Outcome_Assigned&i. in ("IAB") And b.outcome in ("IAB" "UAB") and put(b.dxprrx ,$outcdpr.)='1' then 2 /*"AB-PR"*/
                        when Outcome_Assigned&i. in ("UAB") And b.outcome in ("UAB") and put(b.dxprrx ,$outcdpr.)='1' then 2 /*"AB-PR"*/
 
-					   /*CDL: ADDED -- Same as above.*/
+
+					   /*Same as above.*/
 					   when Outcome_Assigned&i. in ("UAB") And put(b.outcome,$outclass.)='Abortion' and put(dxprrx ,$outcdpr.)='1' then 2 /*"AB-PR"*/
+
+					   /*CDL: ADDED for logical consistency -- SABs assigned via algortihm 4 but have a IAB pr code that was missed above*/
+					   when Outcome_Assigned&i. in ("SAB") And put(b.outcome,$outclass.)='Abortion' and put(dxprrx ,$outcdpr.)='1' and &i = 4 then 2 /*2.1*/
+
 
                        when Outcome_Assigned&i. in ("SAB" "IAB" "UAB") And b.outcome in ("SAB" "IAB" "UAB") And substr(b.dxprrx,3) in ('2','3') then 4 /*"AB-MIFE"*/
                        when Outcome_Assigned&i. in ("SAB" "IAB" "UAB") And b.outcome in ("SAB" "IAB" "UAB") And substr(b.dxprrx,3) in ('1') then 5 /* "AB-MISO"*/
@@ -138,7 +147,7 @@ Modifications:
                        when Outcome_Assigned&i. in ("IAB") And b.outcome in ("IAB" "UAB") and put(b.dxprrx ,$outcddx.)='1' then 3 /*"AB-DX"*/
                        when Outcome_Assigned&i. in ("UAB") And b.outcome in ("UAB") and put(b.dxprrx ,$outcddx.)='1' then 3 /*"AB-DX"*/
 
-					   /*CDL: ADDED -- Same as above*/
+					   /*Same as above*/
 					   when Outcome_Assigned&i. in ("UAB") And put(b.outcome,$outclass.)='Abortion' and put(dxprrx ,$outcddx.)='1' then 3 /*"AB-DX"*/
 
                        when Outcome_Assigned&i. in ("EM", "AEM") And b.outcome in ("EM" "AEM") and put(b.dxprrx ,$outcdpr.)='1' then 2 /*"EM-PR"*/
@@ -179,17 +188,3 @@ proc format;
 run;
 
 
-
-
-
-/*OLD NOTES*/
-
-
-/**** addition 9.2023 -- Assign date based on outcome assigned (technically STEP 2);*/
-
-** 10.31 revision - using Outcome_Assigned# (LBM,...) Outcome_Assigned_COdetype# (110,...) Outcome_Class_Assigned# (Delivery,Abortion,Ectopic);
-** change approach to use table 2 as written (long!) that in the end per CL uses concordance of outcomes;
-              /*from 9.22 CHANGE NEEDED - MUST ALSO CHECK THAT DATE IS FOR A CONCORDANT OUTCOME (TABLE 1)*/
-              /*                   if group has LBM, LBS, UDL and Assign=LBM then date uses LBM, UDL*/
-              /*                   (try setup as macro loop eg dx code lookups)*/
-** the concordance pairs from conctbl mac - (LBM, UDL) (LBS, UDL) (MLS, UDL) (SB , UDL) (SAB, UAB) (IAB, UAB) (EM , AEM) ;
